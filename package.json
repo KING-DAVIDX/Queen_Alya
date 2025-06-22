@@ -1,0 +1,32 @@
+{
+  "name": "QUEEN_ALYA",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "run": "pm2 start index.js --deep-monitoring --attach --name alya || node index.js",
+    "start": "pm2 start index.js --attach --name alya",
+    "stop": "pm2 stop alya",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@nexoracle/utils": "^1.1.18",
+    "axios": "^1.3.3",
+    "baileys": "npm:baileys-pro@^0.0.5",
+    "express": "^4.18.2",
+    "file-type": "^16.5.3",
+    "form-data": "*",
+    "link-preview-js": "^3.1.0",
+    "node-cache": "*",
+    "node-fetch": "*",
+    "node-webpmux": "^3.2.1",
+    "pino": "^8.0.0",
+    "pm2": "^5.3.0",
+    "sqlite": "",
+    "sqlite3": "^5.1.7",
+    "yt-search": "^2.6.1"
+  }
+}
