@@ -14,6 +14,7 @@ const NodeCache = require("node-cache");
 const { console } = require("@nexoracle/utils");
 const { setupStatusSaver, cleanupStatusSaver } = require("./lib/ssaver");
 const { setupAntiCall, cleanupAntiCall } = require("./lib/anticall");
+const { fileWatcher } = require('./lib/file');
 
 const prefa = "ALYA-";
 const sessionFolder = path.join(__dirname, "session");
@@ -43,13 +44,15 @@ const PORT = process.env.PORT || 3000;
 // Config watcher and cache
 let greetingEnabled = config.GREETING;
 const configPath = path.join(__dirname, 'config.js');
-fs.watchFile(configPath, (curr, prev) => {
-    try {
-        delete require.cache[require.resolve('./config')];
-        const newConfig = require('./config');
-        greetingEnabled = newConfig.GREETING;
-    } catch (err) {
-        console.error('Error reloading config:', err);
+fileWatcher.watchFile(configPath, (eventType, path) => {
+    if (eventType === 'change') {
+        try {
+            delete require.cache[require.resolve('./config')];
+            const newConfig = require('./config');
+            greetingEnabled = newConfig.GREETING;
+        } catch (err) {
+            console.error('Error reloading config:', err);
+        }
     }
 });
 
