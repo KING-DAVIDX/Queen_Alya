@@ -1,0 +1,150 @@
+const bot = require("../lib/plugin");
+const axios = require("axios");
+const { exec } = require("child_process");
+
+// Track bot startup time for uptime calculation
+const startTime = new Date();
+bot(
+    {
+        name: "ping",
+        info: "Measures response time of the bot",
+        category: "System"
+    },
+    async (message, bot) => {
+        const start = new Date().getTime();
+        let { key } = await bot.reply(`*Ping 👑*`);
+        const end = new Date().getTime();
+        const speed = end - start;
+        await bot.sock.sendMessage(message.chat, { 
+            text: `*Pong*\n${speed} *𝚖𝚜*`, 
+            edit: key 
+        });
+    }
+);
+
+// Uptime command
+bot(
+    {
+        name: "uptime",
+        info: "Shows how long the bot has been running",
+        category: "System"
+    },
+    async (message, bot) => {
+        const currentTime = new Date();
+        const uptime = currentTime - startTime;
+        
+        // Convert milliseconds to days, hours, minutes, seconds
+        const seconds = Math.floor(uptime / 1000) % 60;
+        const minutes = Math.floor(uptime / (1000 * 60)) % 60;
+        const hours = Math.floor(uptime / (1000 * 60 * 60)) % 24;
+        const days = Math.floor(uptime / (1000 * 60 * 60 * 24));
+        
+        let uptimeString = "";
+        if (days > 0) uptimeString += `${days} day${days > 1 ? 's' : ''} `;
+        if (hours > 0) uptimeString += `${hours} hour${hours > 1 ? 's' : ''} `;
+        if (minutes > 0) uptimeString += `${minutes} minute${minutes > 1 ? 's' : ''} `;
+        uptimeString += `${seconds} second${seconds !== 1 ? 's' : ''}`;
+        
+        await bot.reply(`*Bot Uptime*\n${uptimeString}`);
+    }
+);
+
+// Alive command
+bot(
+    {
+        name: "alive",
+        info: "Check if bot is running",
+        category: "System"
+    },
+    async (message, bot) => {
+        try {
+            // Get random quote
+            let res = await axios.get("https://ironman.koyeb.app/api/aquote");
+            let json = res.data;
+            
+            let quote;
+            if (!json.sukses || !json.result || json.result.length === 0) {
+                quote = {
+                    english: "The greatest glory in living lies not in never falling, but in rising every time we fall.",
+                    character: "Nelson Mandela"
+                };
+            } else {
+                quote = json.result[Math.floor(Math.random() * json.result.length)];
+            }
+
+            // Format the quote (no emojis, no anime title)
+            const quoteMessage = `*"${quote.english}"*\n\n` +
+                                `— *${quote.character}*`;
+            
+            // Calculate uptime for alive message
+            const currentTime = new Date();
+            const uptime = currentTime - startTime;
+            const hours = Math.floor(uptime / (1000 * 60 * 60));
+            const minutes = Math.floor((uptime % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((uptime % (1000 * 60)) / 1000);
+            
+            const uptimeMessage = `*Uptime:* ${hours}h ${minutes}m ${seconds}s`;
+            
+            // Send image with caption
+            await bot.sendMessage(message.chat, {
+                image: { url: "https://files.catbox.moe/55f24l.jpg" },
+                caption: `👑 *I'm Alive!* 👑\n\n${uptimeMessage}\n\n${quoteMessage}`,
+                mentions: message.sender ? [message.sender] : []
+            });
+        } catch (error) {
+            console.error("Error in alive command:", error);
+            await bot.reply("An error occurred while processing your request.");
+        }
+    }
+);
+bot(
+    {
+        name: "restart",
+        info: "Restarts the bot using PM2",
+        category: "System"
+    },
+    async (message, bot) => {
+        try {
+            await bot.reply("🔄 *Restarting bot...*");
+            
+            exec("pm2 restart bot", (error, stdout, stderr) => {
+                if (error) {
+                    console.error(`Restart error: ${error}`);
+                    return bot.sendMessage(message.chat, { 
+                        text: "❌ *Failed to restart bot!*\nCheck server logs." 
+                    });
+                }
+                console.log(`Restart output: ${stdout}`);
+            });
+        } catch (err) {
+            console.error("Restart command error:", err);
+            await bot.reply("❌ *Error while trying to restart!*");
+        }
+    }
+);
+
+bot(
+    {
+        name: "shutdown",
+        info: "Stops the bot using PM2",
+        category: "System"
+    },
+    async (message, bot) => {
+        try {
+            await bot.reply("⏳ *Shutting down bot...*");
+            
+            exec("pm2 stop bot", (error, stdout, stderr) => {
+                if (error) {
+                    console.error(`Shutdown error: ${error}`);
+                    return bot.sendMessage(message.chat, { 
+                        text: "❌ *Failed to shutdown bot!*\nCheck server logs." 
+                    });
+                }
+                console.log(`Shutdown output: ${stdout}`);
+            });
+        } catch (err) {
+            console.error("Shutdown command error:", err);
+            await bot.reply("❌ *Error while trying to shutdown!*");
+        }
+    }
+);
