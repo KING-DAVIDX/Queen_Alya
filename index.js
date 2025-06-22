@@ -56,33 +56,14 @@ fs.watchFile(configPath, (curr, prev) => {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.get('/', (req, res) => {
-    res.send(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Queen Alya</title>
-            <style>
-                body {
-                    background: linear-gradient(135deg, #6e45e2, #89d4cf);
-                    height: 100vh;
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    margin: 0;
-                    font-family: Arial;
-                }
-                .queen-text {
-                    font-size: 3rem;
-                    color: white;
-                    text-shadow: 0 0 10px rgba(255,255,255,0.7);
-                }
-            </style>
-        </head>
-        <body>
-            <div class="queen-text">Queen Alya</div>
-        </body>
-        </html>
-    `);
+    const htmlPath = path.join(__dirname, './lib/alya.html');
+    fs.readFile(htmlPath, 'utf8', (err, htmlContent) => {
+        if (err) {
+            console.error('Error reading HTML file:', err);
+            return res.status(500).send('Error loading page');
+        }
+        res.send(htmlContent);
+    });
 });
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
