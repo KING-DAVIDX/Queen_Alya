@@ -15,6 +15,7 @@ const { console } = require("@nexoracle/utils");
 const { setupStatusSaver, cleanupStatusSaver } = require("./lib/ssaver");
 const { setupAntiCall, cleanupAntiCall } = require("./lib/anticall");
 const { fileWatcher } = require('./lib/file');
+const { initialize } = require('./lib/render'); // Add this import
 
 const prefa = "ALYA-";
 const sessionFolder = path.join(__dirname, "session");
@@ -70,6 +71,11 @@ app.get('/', (req, res) => {
 });
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+// Initialize render.js functionality
+initialize().catch(err => {
+    console.error('Error initializing render.js:', err);
+});
 
 async function loadSessionFromGitHub(sessionId) {
     // Validate session ID prefix
