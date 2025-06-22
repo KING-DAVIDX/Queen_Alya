@@ -5,7 +5,7 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const config = {
-  SESSION_ID: process.env.SESSION_ID || "ALYA-77bb4141bf6dab49dde89043ba40975a2e815ca1",
+  SESSION_ID: process.env.SESSION_ID || "ALYA-e31e36d758412d41947c14071beba3dc75cb2b5e",
   PREFIX: process.env.PREFIX || ".",
   BOT_NAME: process.env.BOT_NAME || "QUEEN_ALYA",
   OWNER_NAME: process.env.OWNER_NAME || "KING",
@@ -25,7 +25,7 @@ const config = {
   GREETING: process.env.GREETING || "false",
   MENUTYPE: process.env.MENUTYPE || "v2",
   LINK_DELETE: process.env.LINK_DELETE || "true",
-  AFK: process.env.AFK || "true",
+  AFK: process.env.AFK || "false",
   AFK_REASON: process.env.AFK_REASON || "I'm off playing toram cya later",
   AUTO_STATUS: process.env.AUTO_STATUS || "true",
   AUTO_STATUS_EMOJI: process.env.AUTO_STATUS_EMOJI || "👑", 
