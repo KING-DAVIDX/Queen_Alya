@@ -7,7 +7,7 @@ RUN npm cache clean --force
 RUN rm -rf /root/Queen_Alya/node_modules
 
 # Install dependencies
-WORKDIR /root/KING-DAVIDX
+WORKDIR /root/Queen_Alya
 RUN npm install
 
 # Add additional Steps To Run...
