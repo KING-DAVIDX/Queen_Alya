@@ -24,6 +24,7 @@ const config = {
   ANTIWORD: "fek" || process.env.ANTIWORD,
   GREETING: "false" || process.env.GREETING,
   MENUTYPE: "v2" || process.env.MENUTYPE,
+  MENU_URLS: "https://files.catbox.moe/55f24l.jpg;https://files.catbox.moe/55f24l.mp4" || process.env.MENU_URLS,
   LINK_DELETE: "true" || process.env.LINK_DELETE,
   AFK: "false" || process.env.AFK,
   AFK_REASON: "I'm off playing toram cya later" || process.env.AFK_REASON,
