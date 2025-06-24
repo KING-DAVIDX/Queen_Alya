@@ -107,7 +107,7 @@ bot(
         try {
             await bot.reply("🔄 *Restarting bot...*");
             
-            exec("pm2 restart bot", (error, stdout, stderr) => {
+            exec("pm2 restart alya", (error, stdout, stderr) => {
                 if (error) {
                     console.error(`Restart error: ${error}`);
                     return bot.sendMessage(message.chat, { 
@@ -133,7 +133,7 @@ bot(
         try {
             await bot.reply("⏳ *Shutting down bot...*");
             
-            exec("pm2 stop bot", (error, stdout, stderr) => {
+            exec("pm2 stop alya", (error, stdout, stderr) => {
                 if (error) {
                     console.error(`Shutdown error: ${error}`);
                     return bot.sendMessage(message.chat, { 
@@ -145,6 +145,68 @@ bot(
         } catch (err) {
             console.error("Shutdown command error:", err);
             await bot.reply("❌ *Error while trying to shutdown!*");
+        }
+    }
+);
+bot(
+    {
+        name: "dev",
+        info: "Send my profile information",
+        category: "system"
+    },
+    async (message, bot) => {
+        try {
+            // Get profile picture URL
+            const king = "2349123721026@s.whatsapp.net"
+            const profilePicUrl = await bot.sock.profilePictureUrl(king, "image").catch(() => null);
+            
+            // About me information
+            const aboutMe = `
+👑 *About Me* 👑
+
+*Name:* KING XER
+*Organization:* KING TECH INC
+*Skills:* Full Stack Development, AI, Automation
+*Philosophy:* Building solutions that make life easier
+*Favorite quote:* Nothing to fear no one to fight
+*Status:* Always coding something new!
+            `.trim();
+            
+            // Contact vCard
+            const vcard = 'BEGIN:VCARD\n' // metadata of the contact card
+                + 'VERSION:3.0\n'
+                + 'FN:KING XER\n' // full name
+                + 'ORG: KING TECH INC;\n'
+                + 'TEL;type=CELL;type=VOICE;waid=2349123721026:+2349123721026\n'
+                + 'END:VCARD';
+            
+            // Send profile picture if available
+            if (profilePicUrl) {
+                await bot.sock.sendMessage(message.chat, {
+                    image: { url: profilePicUrl },
+                    caption: "👑 *My Profile Picture* 👑",
+                });
+            }
+            
+            // Send about me information
+            await bot.sock.sendMessage(message.chat, {
+                text: aboutMe
+            });
+            
+            // Send contact card
+            await bot.sock.sendMessage(
+                message.chat,
+                {
+                    contacts: {
+                        displayName: 'KING XER',
+                        contacts: [{ vcard }]
+                    }
+                }
+            );
+            
+        } catch (error) {
+            console.error("Error in profile command:", error);
+            await bot.reply("An error occurred while sending my profile information.");
         }
     }
 );
