@@ -5,7 +5,7 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const config = {
-  SESSION_ID: "ALYA-e31e36d758412d41947c14071beba3dc75cb2b5e" || process.env.SESSION_ID,
+  SESSION_ID: "ALYA-28b4aad243648782aaa8ef93201130a2b036c3ad" || process.env.SESSION_ID,
   PREFIX: "." || process.env.PREFIX,
   BOT_NAME: "QUEEN_ALYA" || process.env.BOT_NAME,
   OWNER_NAME: "KING" || process.env.OWNER_NAME,
@@ -24,7 +24,7 @@ const config = {
   ANTIWORD: "fek" || process.env.ANTIWORD,
   GREETING: "false" || process.env.GREETING,
   MENUTYPE: "v2" || process.env.MENUTYPE,
-  MENU_URLS: "https://files.catbox.moe/55f24l.jpg;https://files.catbox.moe/c7d761.mp4" || process.env.MENU_URLS,
+  MENU_URLS: "https://files.catbox.moe/55f24l.jpg;https://files.catbox.moe/1p2yqo.png;https://files.catbox.moe/tgpgwn.png;https://files.catbox.moe/1y1lnl.jpg;https://files.catbox.moe/r85hmq.jpg;https://files.catbox.moe/vmid29.jpg;https://files.catbox.moe/pqijxi.mp4;https://files.catbox.moe/ycg4un.mp4;https://files.catbox.moe/c1a27a.mp4;https://files.catbox.moe/pq3345.mp4" || process.env.MENU_URLS,
   LINK_DELETE: "true" || process.env.LINK_DELETE,
   AFK: "false" || process.env.AFK,
   AFK_REASON: "I'm off playing toram cya later" || process.env.AFK_REASON,
