@@ -19,6 +19,7 @@
   "license": "Apache-2.0",
   "dependencies": {
     "@nexoracle/utils": "^1.1.18",
+    "adm-zip": "^0.5.16",
     "axios": "^1.3.3",
     "baileys": "npm:baileys-pro@^0.0.5",
     "chokidar": "*",
