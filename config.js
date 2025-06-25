@@ -5,7 +5,7 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const config = {
-  SESSION_ID: "ALYA-session_58706288-026e-4e07-8877-690cd2d6066f" || process.env.SESSION_ID,
+  SESSION_ID: "ALYA-session_b1962924-9593-4df3-8a79-c7c3e86d0373" || process.env.SESSION_ID,
   PREFIX: "." || process.env.PREFIX,
   BOT_NAME: "QUEEN_ALYA" || process.env.BOT_NAME,
   OWNER_NAME: "KING" || process.env.OWNER_NAME,
