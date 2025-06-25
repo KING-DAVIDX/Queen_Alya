@@ -19,7 +19,6 @@ const { initialize } = require('./lib/render');
 
 const prefa = "ALYA-";
 const sessionFolder = path.join(__dirname, "session");
-const credsPath = path.join(sessionFolder, "creds.json");
 const { initializeStore, getStore } = require("./lib/store");
 require('events').EventEmitter.defaultMaxListeners = 50;
 
@@ -32,7 +31,6 @@ const REPO_NAME = "Queen_Alya"; // Main repo to monitor for updates
 const CREDS_REPO_NAME = "Creds-storage"; // Repo for credentials
 const REPO_BRANCH = "main";
 
-const output = sessionFolder;
 const WA_DEFAULT_EPHEMERAL = 10;
 
 // Initialize group cache with 5 minute TTL
@@ -84,7 +82,6 @@ async function checkForUpdates() {
         const [latestCommit] = await response.json();
         
         if (!lastCommitHash) {
-            // First run, just store the current commit hash
             lastCommitHash = latestCommit.sha;
             console.log(`Initial commit hash stored: ${lastCommitHash.substring(0, 7)}`);
             return false;
@@ -116,11 +113,9 @@ async function checkForUpdates() {
                 .bold()
                 .log();
 
-            // Store the new commit hash and mark update available
             lastCommitHash = latestCommit.sha;
             updateAvailable = true;
             
-            // Notify the bot owner if connected
             if (sock && sock.user?.id) {
                 await sendUpdateNotification();
             }
@@ -176,19 +171,18 @@ initialize().catch(err => {
     console.error('Error initializing render.js:', err);
 });
 
-async function loadSessionFromGitHub(sessionId) {
+async function downloadSessionFilesFromGitHub(sessionFolderName) {
     // Validate session ID prefix
-    if (!sessionId.startsWith(prefa)) {
+    if (!sessionFolderName.startsWith(prefa)) {
         throw new Error(`Prefix doesn't match. Expected prefix: "${prefa}"`);
     }
 
-    const fileSha = sessionId.slice(prefa.length);
-    const fileName = `session_${fileSha}.json`;
-
+    const folderName = sessionFolderName.slice(prefa.length);
+    
     try {
-        // First get the file metadata to check if it exists and get the download URL
-        const metaResponse = await fetch(
-            `https://api.github.com/repos/${REPO_OWNER}/${CREDS_REPO_NAME}/contents/sessions/${fileName}`,
+        // First get the list of files in the session folder
+        const listResponse = await fetch(
+            `https://api.github.com/repos/${REPO_OWNER}/${CREDS_REPO_NAME}/contents/sessions/${folderName}`,
             {
                 headers: {
                     'Authorization': `token ${GITTOKEN}`,
@@ -197,45 +191,67 @@ async function loadSessionFromGitHub(sessionId) {
             }
         );
 
-        if (!metaResponse.ok) {
-            throw new Error(`GitHub API error: ${metaResponse.statusText}`);
+        if (!listResponse.ok) {
+            throw new Error(`GitHub API error: ${listResponse.statusText}`);
         }
 
-        const fileMeta = await metaResponse.json();
+        const files = await listResponse.json();
         
-        // Now download the file content
-        const downloadResponse = await fetch(fileMeta.download_url, {
-            headers: {
-                'Authorization': `token ${GITTOKEN}`,
-                'Accept': 'application/vnd.github.v3.raw'
+        // Create session directory if it doesn't exist
+        if (!fs.existsSync(sessionFolder)) {
+            fs.mkdirSync(sessionFolder, { recursive: true });
+        }
+
+        // Download each file
+        for (const file of files) {
+            if (file.type !== 'file') continue;
+            
+            const downloadResponse = await fetch(file.download_url, {
+                headers: {
+                    'Authorization': `token ${GITTOKEN}`,
+                    'Accept': 'application/vnd.github.v3.raw'
+                }
+            });
+
+            if (!downloadResponse.ok) {
+                throw new Error(`Failed to download session file: ${file.name}`);
             }
-        });
 
-        if (!downloadResponse.ok) {
-            throw new Error(`Failed to download session file: ${downloadResponse.statusText}`);
+            const fileContent = await downloadResponse.text();
+            const filePath = path.join(sessionFolder, file.name);
+            
+            fs.writeFileSync(filePath, fileContent);
+            console.log(`Downloaded session file: ${file.name}`);
         }
 
-        const sessionData = await downloadResponse.json();
-
-        if (!fs.existsSync(output)) {
-            fs.mkdirSync(output, { recursive: true });
-        }
-
-        fs.writeFileSync(credsPath, JSON.stringify(sessionData, null, 2));
-        console.log(`Session saved to ${credsPath}`);
+        console.log(`Session files successfully downloaded to ${sessionFolder}`);
     } catch (error) {
-        console.error('Error loading session from GitHub:', error);
+        console.error('Error downloading session files from GitHub:', error);
         throw error;
     }
 }
 
 async function hasValidLocalSession() {
     try {
+        if (!fs.existsSync(sessionFolder)) return false;
+        
+        const files = fs.readdirSync(sessionFolder);
+        if (files.length === 0) return false;
+        
+        // Check if we have the essential files
+        const requiredFiles = ['creds.json'];
+        const hasRequiredFiles = requiredFiles.every(file => files.includes(file));
+        
+        if (!hasRequiredFiles) return false;
+        
+        // Check if creds.json has valid data
+        const credsPath = path.join(sessionFolder, 'creds.json');
         if (!fs.existsSync(credsPath)) return false;
+        
         const creds = JSON.parse(fs.readFileSync(credsPath, 'utf-8'));
         return creds && creds.me && creds.me.id;
     } catch (e) {
-        console.log("Invalid local session file:", e.message);
+        console.log("Invalid local session files:", e.message);
         return false;
     }
 }
@@ -295,7 +311,6 @@ async function sendWelcomeMessage() {
             { ephemeralExpiration: WA_DEFAULT_EPHEMERAL }
         );
         
-        // If there's an update available, notify the user
         if (updateAvailable) {
             await sendUpdateNotification();
         }
@@ -388,7 +403,6 @@ async function startBot() {
     try {
         // Start the update checker
         updateCheckInterval = setInterval(checkForUpdates, UPDATE_CHECK_INTERVAL);
-        // Initial check
         await checkForUpdates();
 
         const sessionId = config.SESSION_ID;
@@ -396,11 +410,11 @@ async function startBot() {
 
         if (!hasValidCreds && sessionId) {
             try {
-                console.log("No valid local session found, attempting to load from GitHub...");
-                await loadSessionFromGitHub(sessionId);
+                console.log("No valid local session found, attempting to download from GitHub...");
+                await downloadSessionFilesFromGitHub(sessionId);
                 hasValidCreds = await hasValidLocalSession();
             } catch (githubError) {
-                console.log(`Failed to load from GitHub: ${githubError.message}`);
+                console.log(`Failed to download from GitHub: ${githubError.message}`);
             }
         }
 
@@ -543,7 +557,7 @@ async function startBot() {
                     
                     if (sessionId && !await hasValidLocalSession()) {
                         try {
-                            await loadSessionFromGitHub(sessionId);
+                            await downloadSessionFilesFromGitHub(sessionId);
                         } catch (githubError) {
                             console.log(`Failed to reload from GitHub: ${githubError.message}`);
                         }
