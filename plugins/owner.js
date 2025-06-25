@@ -3,6 +3,7 @@ const { S_WHATSAPP_NET } = require('baileys');
 const bot = require("../lib/plugin");
 const { downloadContentFromMessage } = require('baileys');
 const { normalizeJid } = require('../lib/serialize');
+const config = require ("../config");
 bot(
   {
     name: 'fullpp',
@@ -132,5 +133,29 @@ bot(
             console.error("View-once conversion error:", error);
             await bot.reply(`Failed to convert view-once media: ${error.message}`);
         }
+    }
+);
+bot(
+    {
+        name: "owner",
+        info: "Measures response time of the bot",
+        category: "Owner"
+    },
+    async (message, bot) => {
+        const vcard = 'BEGIN:VCARD\n' // metadata of the contact card
+                + 'VERSION:3.0\n'
+                + `FN:${config.OWNER_NAME}\n` // full name
+                + 'ORG: QUEEN_ALYA;\n'
+                + `TEL;type=CELL;type=VOICE;waid=${config.OWNER_NUMBER}:+${config.OWNER_NUMBER}\n`
+                + 'END:VCARD';
+                await bot.sock.sendMessage(
+                message.chat,
+                {
+                    contacts: {
+                        displayName: `${config.OWNER_NAME}`,
+                        contacts: [{ vcard }]
+                    }
+                }
+            );
     }
 );

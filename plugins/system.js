@@ -1,5 +1,6 @@
 const bot = require("../lib/plugin");
 const axios = require("axios");
+const fetch = require("node-fetch");
 const { exec } = require("child_process");
 
 // Track bot startup time for uptime calculation
@@ -183,15 +184,18 @@ bot(
             // Send profile picture if available
             if (profilePicUrl) {
                 await bot.sock.sendMessage(message.chat, {
-                    image: { url: profilePicUrl },
-                    caption: "👑 *My Profile Picture* 👑",
-                });
+        image: { url: profilePicUrl },
+        caption: aboutMe,
+        contextInfo: {
+          forwardingScore: 1,
+          isForwarded: true,
+          forwardedNewsletterMessageInfo: {
+            newsletterJid: "120363418404777886@newsletter",
+            newsletterName: "KING_XER",
+          },
+        },
+      });
             }
-            
-            // Send about me information
-            await bot.sock.sendMessage(message.chat, {
-                text: aboutMe
-            });
             
             // Send contact card
             await bot.sock.sendMessage(
@@ -207,6 +211,67 @@ bot(
         } catch (error) {
             console.error("Error in profile command:", error);
             await bot.reply("An error occurred while sending my profile information.");
+        }
+    }
+);
+bot(
+    {
+        name: "repo",
+        info: "Displays information about the Queen_Alya repository",
+        category: "system"
+    },
+    async (message, bot) => {
+        try {
+            // Fetch repository data from GitHub API
+            const response = await axios.get('https://api.github.com/repos/KING-DAVIDX/Queen_Alya');
+            const repoData = await response.data;
+            
+            const repoInfo = `
+👑 *QUEEN ALYA BOT* 👑
+
+🚀 *Repository:* ${repoData.name}
+👨‍💻 *Developer:* ${repoData.owner.login}
+⭐ *Stars:* ${repoData.stargazers_count}
+🍴 *Forks:* ${repoData.forks_count}
+📝 *Description:* ${repoData.description || 'Best WhatsApp bot ever ❤️👑'}
+
+🔗 *GitHub:* ${repoData.html_url}
+
+💎 *Where royalty meets technology!* 💎
+
+🚀 *Want to deploy? Contact:* 
+https://wa.me/2349123721026`;
+
+            await bot.sock.sendMessage(
+                message.chat,
+                {
+                    text: repoInfo
+                }
+            );
+        } catch (error) {
+            // Fallback if API fails
+            const repoInfo = `
+👑 *QUEEN ALYA BOT* 👑
+
+🚀 *Repository:* Queen_Alya
+👨‍💻 *Developer:* KING-DAVIDX
+⭐ *Stars:* Loading...
+🍴 *Forks:* Loading...
+📝 *Description:* Best WhatsApp bot ever ❤️👑
+
+🔗 *GitHub:* https://github.com/KING-DAVIDX/Queen_Alya
+
+💎 *Where royalty meets technology!* 💎
+
+🚀 *Want to deploy? Contact:* 
+https://wa.me/2349123721026`;
+
+            await bot.sock.sendMessage(
+                message.chat,
+                {
+                    text: repoInfo
+                }
+            );
         }
     }
 );

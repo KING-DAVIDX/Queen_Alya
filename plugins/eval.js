@@ -12,7 +12,7 @@ bot(
         usage: "> <js code>"
     },
     async (message, bot) => {
-        // Get the full message text (either from content or text property)
+       await bot.react("🍁");
         const fullText = message.content || message.text;
         const code = fullText.slice(1).trim();  // Remove the > prefix
         
@@ -47,7 +47,7 @@ bot(
         usage: "$ <command>"
     },
     async (message, bot) => {
-        // Get the full message text (either from content or text property)
+        await bot.react("🍁");
         const fullText = message.content || message.text;
         const command = fullText.slice(1).trim();  // Remove the $ prefix
         
