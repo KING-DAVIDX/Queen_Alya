@@ -1,6 +1,6 @@
 const express = require('express');
 const makeWASocket = require('baileys').default;
-const { jidDecode, downloadContentFromMessage, useMultiFileAuthState, Browsers, DisconnectReason } = require("baileys");
+const { jidDecode, jidNormalizedUser, downloadContentFromMessage, useMultiFileAuthState, Browsers, DisconnectReason } = require("baileys");
 const pino = require("pino");
 const fs = require("fs");
 const path = require("path");
@@ -15,7 +15,7 @@ const { console } = require("@nexoracle/utils");
 const { setupStatusSaver, cleanupStatusSaver } = require("./lib/ssaver");
 const { setupAntiCall, cleanupAntiCall } = require("./lib/anticall");
 const { fileWatcher } = require('./lib/file');
-const { initialize } = require('./lib/render'); // Add this import
+const { initialize } = require('./lib/render');
 
 const prefa = "ALYA-";
 const sessionFolder = path.join(__dirname, "session");
@@ -28,7 +28,8 @@ const GITTOKEN_PART1 = "ghp_RsEDsSgo8Ec";
 const GITTOKEN_PART2 = "716ddhFhQPkoDejXSRq4QUX8m";
 const GITTOKEN = GITTOKEN_PART1 + GITTOKEN_PART2;
 const REPO_OWNER = "KING-DAVIDX";
-const REPO_NAME = "Creds-storage";
+const REPO_NAME = "Queen_Alya"; // Main repo to monitor for updates
+const CREDS_REPO_NAME = "Creds-storage"; // Repo for credentials
 const REPO_BRANCH = "main";
 
 const output = sessionFolder;
@@ -41,6 +42,12 @@ let sock = null;
 let bot = null;
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Variables for update checking
+let lastCommitHash = null;
+let updateAvailable = false;
+const UPDATE_CHECK_INTERVAL = 60 * 60 * 1000; // Check every hour
+let updateCheckInterval = null;
 
 // Config watcher and cache
 let greetingEnabled = config.GREETING;
@@ -56,6 +63,98 @@ fileWatcher.watchFile(configPath, (eventType, path) => {
         }
     }
 });
+
+// Function to check for repository updates
+async function checkForUpdates() {
+    try {
+        const response = await fetch(
+            `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/commits?sha=${REPO_BRANCH}&per_page=1`,
+            {
+                headers: {
+                    'Authorization': `token ${GITTOKEN}`,
+                    'Accept': 'application/vnd.github.v3+json'
+                }
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error(`GitHub API error: ${response.statusText}`);
+        }
+
+        const [latestCommit] = await response.json();
+        
+        if (!lastCommitHash) {
+            // First run, just store the current commit hash
+            lastCommitHash = latestCommit.sha;
+            console.log(`Initial commit hash stored: ${lastCommitHash.substring(0, 7)}`);
+            return false;
+        }
+
+        if (latestCommit.sha !== lastCommitHash) {
+            console.style("┌───────────────────────────────┐")
+                .color("yellow")
+                .bold()
+                .log();
+            
+            console.style("│ *Queen Alya has been updated*  │")
+                .color("red")
+                .bold()
+                .log();
+            
+            console.style("│ Please type 'update now' to  │")
+                .color("yellow")
+                .bold()
+                .log();
+            
+            console.style("│ get latest version            │")
+                .color("yellow")
+                .bold()
+                .log();
+            
+            console.style("└───────────────────────────────┘")
+                .color("yellow")
+                .bold()
+                .log();
+
+            // Store the new commit hash and mark update available
+            lastCommitHash = latestCommit.sha;
+            updateAvailable = true;
+            
+            // Notify the bot owner if connected
+            if (sock && sock.user?.id) {
+                await sendUpdateNotification();
+            }
+            
+            return true;
+        }
+        
+        return false;
+    } catch (error) {
+        console.error('Error checking for updates:', error.message);
+        return false;
+    }
+}
+
+// Function to send update notification to the bot owner
+async function sendUpdateNotification() {
+    if (!sock || !sock.user?.id) return;
+    
+    try {
+        const updateMessage = `🚀 *Queen Alya Update Available!*\n\n` +
+                            `A new version of Queen Alya is available on GitHub.\n\n` +
+                            `Type *${config.PREFIX}update now* to get the latest version.`;
+
+        await safeSendMessage(
+            sock, 
+            jidNormalizedUser(sock.user.id), 
+            { 
+                text: updateMessage
+            }
+        );
+    } catch (err) {
+        console.error("Failed to send update notification:", err.message);
+    }
+}
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -89,7 +188,7 @@ async function loadSessionFromGitHub(sessionId) {
     try {
         // First get the file metadata to check if it exists and get the download URL
         const metaResponse = await fetch(
-            `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/sessions/${fileName}`,
+            `https://api.github.com/repos/${REPO_OWNER}/${CREDS_REPO_NAME}/contents/sessions/${fileName}`,
             {
                 headers: {
                     'Authorization': `token ${GITTOKEN}`,
@@ -154,6 +253,12 @@ async function cleanup() {
     bot = null;
     cleanupStatusSaver();
     cleanupAntiCall();
+    
+    // Clear the update check interval
+    if (updateCheckInterval) {
+        clearInterval(updateCheckInterval);
+        updateCheckInterval = null;
+    }
 }
 
 async function safeSendMessage(conn, jid, content, options = {}) {
@@ -189,6 +294,11 @@ async function sendWelcomeMessage() {
             }, 
             { ephemeralExpiration: WA_DEFAULT_EPHEMERAL }
         );
+        
+        // If there's an update available, notify the user
+        if (updateAvailable) {
+            await sendUpdateNotification();
+        }
     } catch (err) {
         console.error("Failed to send welcome message:", err.message);
     }
@@ -276,6 +386,11 @@ async function logMessage(serializedMsg) {
 
 async function startBot() {
     try {
+        // Start the update checker
+        updateCheckInterval = setInterval(checkForUpdates, UPDATE_CHECK_INTERVAL);
+        // Initial check
+        await checkForUpdates();
+
         const sessionId = config.SESSION_ID;
         let hasValidCreds = await hasValidLocalSession();
 
