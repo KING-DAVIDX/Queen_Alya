@@ -159,3 +159,43 @@ bot(
             );
     }
 );
+bot(
+  {
+    name: "name",
+    info: "Update your WhatsApp profile name",
+    category: "Owner",
+    usage: "[new name]"
+  },
+  async (message, bot) => {
+    try {
+      const query = message.query;
+      if (!query) {
+        return await bot.reply(`Please provide a new name.\nUsage: *${config.PREFIX}name [new name]*`);
+      }
+      await bot.sock.updateProfileName(query);
+      await bot.reply(`✅ Profile name updated to *${query}*`);
+    } catch (error) {
+      await handleError(error, bot, message, "name");
+    }
+  }
+);
+bot(
+  {
+    name: "bio",
+    info: "Update your WhatsApp status/bio",
+    category: "Owner",
+    usage: "[new bio]"
+  },
+  async (message, bot) => {
+    try {
+      const query = message.query;
+      if (!query) {
+        return await bot.reply(`Please provide a new bio.\nUsage: *${config.PREFIX}bio [new bio]*`);
+      }
+      await bot.sock.updateProfileStatus(query);
+      await bot.reply(`✅ Bio/Status updated to *${query}*`);
+    } catch (error) {
+      await handleError(error, bot, message, "bio");
+    }
+  }
+);
