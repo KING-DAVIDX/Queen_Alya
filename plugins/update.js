@@ -9,6 +9,16 @@ const GITTOKEN_PART1 = "ghp_RsEDsSgo8Ec";
 const GITTOKEN_PART2 = "716ddhFhQPkoDejXSRq4QUX8m";
 const GITTOKEN = GITTOKEN_PART1 + GITTOKEN_PART2;
 
+// Files and directories to update
+const UPDATE_TARGETS = [
+    'lib',
+    'plugins',
+    'config.js',
+    'Dockerfile',
+    'package.json',
+    'package-lock.json'
+];
+
 bot(
     {
         name: "update",
@@ -68,24 +78,12 @@ bot(
             // Start update process
             await bot.reply("🔄 *Starting Update Process...*\n\nDownloading latest version...");
 
-            // 1. Create backup
-            const backupDir = path.join(__dirname, '../backups');
-            if (!fs.existsSync(backupDir)) {
-                fs.mkdirSync(backupDir);
-            }
-            
-            const backupFileName = `backup-${new Date().toISOString().replace(/[:.]/g, '-')}.zip`;
-            const backupPath = path.join(backupDir, backupFileName);
-            
-            await bot.reply("🔁 Creating backup...");
-            await createBackup(backupPath);
-
-            // 2. Download latest version
+            // 1. Download latest version
             await bot.reply("⬇️ Downloading updates...");
             const zipUrl = `https://github.com/KING-DAVIDX/Queen_Alya/archive/refs/heads/main.zip`;
             const zipBuffer = await downloadFile(zipUrl);
             
-            // 3. Extract update
+            // 2. Extract update
             await bot.reply("📦 Extracting updates...");
             const updateDir = path.join(__dirname, '../update_temp');
             if (fs.existsSync(updateDir)) {
@@ -99,15 +97,15 @@ bot(
             // Get the extracted folder (GitHub adds 'repo-main' suffix)
             const extractedDir = path.join(updateDir, fs.readdirSync(updateDir)[0]);
 
-            // 4. Apply updates
+            // 3. Apply updates
             await bot.reply("🔄 Applying updates...");
             await applyUpdate(extractedDir);
 
-            // 5. Clean up
+            // 4. Clean up
             fs.rmSync(updateDir, { recursive: true });
 
-            // 6. Install dependencies if needed
-            if (fs.existsSync(path.join(__dirname, '../package.json'))) {
+            // 5. Install dependencies if package.json was updated
+            if (UPDATE_TARGETS.includes('package.json')) {
                 await bot.reply("📦 Installing dependencies...");
                 execSync('npm install', { cwd: path.join(__dirname, '..'), stdio: 'inherit' });
             }
@@ -141,23 +139,6 @@ bot(
 );
 
 // Helper functions
-async function createBackup(backupPath) {
-    const zip = new AdmZip();
-    
-    // Add all files except node_modules and backups
-    const rootDir = path.join(__dirname, '..');
-    const files = getAllFiles(rootDir);
-    
-    files.forEach(file => {
-        const relativePath = path.relative(rootDir, file);
-        if (!relativePath.startsWith('node_modules') && !relativePath.startsWith('backups')) {
-            zip.addLocalFile(file, path.dirname(relativePath));
-        }
-    });
-    
-    zip.writeZip(backupPath);
-}
-
 async function downloadFile(url) {
     const response = await axios.get(url, {
         responseType: 'arraybuffer',
@@ -171,49 +152,57 @@ async function downloadFile(url) {
 
 async function applyUpdate(sourceDir) {
     const targetDir = path.join(__dirname, '..');
-    const files = getAllFiles(sourceDir);
     
-    // First delete all existing files except certain directories
-    const preserveDirs = ['node_modules', 'backups', 'sessions'];
-    const existingFiles = getAllFiles(targetDir);
-    
-    existingFiles.forEach(file => {
-        const relativePath = path.relative(targetDir, file);
-        if (!preserveDirs.some(dir => relativePath.startsWith(dir))) {
-            fs.unlinkSync(file);
+    // Delete existing target files/directories
+    UPDATE_TARGETS.forEach(target => {
+        const targetPath = path.join(targetDir, target);
+        try {
+            if (fs.existsSync(targetPath)) {
+                if (fs.lstatSync(targetPath).isDirectory()) {
+                    fs.rmSync(targetPath, { recursive: true });
+                } else {
+                    fs.unlinkSync(targetPath);
+                }
+            }
+        } catch (err) {
+            console.error(`Error removing ${target}:`, err);
         }
     });
     
-    // Copy new files
-    files.forEach(file => {
-        const relativePath = path.relative(sourceDir, file);
-        const targetPath = path.join(targetDir, relativePath);
+    // Copy new files from update
+    UPDATE_TARGETS.forEach(target => {
+        const sourcePath = path.join(sourceDir, target);
+        const targetPath = path.join(targetDir, target);
         
-        // Create directory if needed
-        const targetDirPath = path.dirname(targetPath);
-        if (!fs.existsSync(targetDirPath)) {
-            fs.mkdirSync(targetDirPath, { recursive: true });
+        try {
+            if (fs.existsSync(sourcePath)) {
+                if (fs.lstatSync(sourcePath).isDirectory()) {
+                    copyDirSync(sourcePath, targetPath);
+                } else {
+                    fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+                    fs.copyFileSync(sourcePath, targetPath);
+                }
+            }
+        } catch (err) {
+            console.error(`Error copying ${target}:`, err);
         }
-        
-        fs.copyFileSync(file, targetPath);
     });
 }
 
-function getAllFiles(dirPath, arrayOfFiles = []) {
-    try {
-        const files = fs.readdirSync(dirPath);
-        files.forEach(file => {
-            if (file === 'node_modules' || file === 'backups') return;
-            
-            const fullPath = path.join(dirPath, file);
-            if (fs.statSync(fullPath).isDirectory()) {
-                getAllFiles(fullPath, arrayOfFiles);
-            } else {
-                arrayOfFiles.push(fullPath);
-            }
-        });
-    } catch (err) {
-        console.error(`Error reading directory ${dirPath}:`, err);
+function copyDirSync(source, target) {
+    if (!fs.existsSync(target)) {
+        fs.mkdirSync(target, { recursive: true });
     }
-    return arrayOfFiles;
+    
+    const files = fs.readdirSync(source);
+    files.forEach(file => {
+        const srcPath = path.join(source, file);
+        const destPath = path.join(target, file);
+        
+        if (fs.lstatSync(srcPath).isDirectory()) {
+            copyDirSync(srcPath, destPath);
+        } else {
+            fs.copyFileSync(srcPath, destPath);
+        }
+    });
 }
