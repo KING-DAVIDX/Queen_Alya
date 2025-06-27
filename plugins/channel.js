@@ -3,6 +3,8 @@ const { downloadContentFromMessage } = require('baileys');
 const config = require("../config");
 const fs = require('fs');
 const path = require('path');
+const axios = require('axios');
+const { fileTypeFromBuffer } = require('file-type'); 
 
 // Add rate limiting variables
 const rateLimit = {
@@ -29,7 +31,6 @@ bot(
     const [name, description] = parts;
 
     try {
-      await handleRateLimit();
       const newsletter = await bot.sock.newsletterCreate(name, description);
       const inviteLink = `https://whatsapp.com/channel/${newsletter.invite}`;
       
@@ -60,8 +61,7 @@ bot(
     const newName = message.query;
     if (!newName) return await bot.reply('Example: *!chname New Channel Name*');
 
-    try {
-      await handleRateLimit();
+    try{
       await bot.sock.newsletterUpdateName(message.chat, newName);
       await bot.reply(`*Channel name updated:* ${newName}`);
     } catch (error) {
@@ -85,8 +85,7 @@ bot(
     const newDesc = message.query;
     if (!newDesc) return await bot.reply('Example: *!chdesc New channel description*');
 
-    try {
-      await handleRateLimit();
+    try{
       await bot.sock.newsletterUpdateDescription(message.chat, newDesc);
       await bot.reply(`*Description updated:*\n${newDesc}`);
     } catch (error) {
@@ -97,31 +96,64 @@ bot(
 );
 
 // Set channel profile picture
+// For image validation
+
 bot(
   {
     name: 'chpp',
-    info: 'Set channel profile picture',
+    info: 'Set channel profile picture from URL',
     category: "channel",
-    usage: 'Reply to an image with "chpp"'
+    usage: 'Send: *chpp <image-url>*\nExample: chpp https://example.com/image.jpg'
   },
   async (message, bot) => {
-    if (!message.chat.endsWith('@newsletter')) return await bot.reply('This command is for channels only!');
-    
+    if (!message.chat.endsWith('@newsletter')) {
+      return await bot.reply('❌ This command works only in channels!');
+    }
+
+    if (!message.query) {
+      return await bot.reply('ℹ️ Please provide an image URL!\nExample: *chpp https://example.com/image.jpg*');
+    }
+
     try {
-
-
-      if (!message.quoted?.image) return await bot.reply('Reply to an image!');
-
-      const downloadStream = await downloadContentFromMessage(message.quoted, 'image');
-      let buffer = Buffer.from([]);
-      for await (const chunk of downloadStream) {
-        buffer = Buffer.concat([buffer, chunk]);
+      // Validate URL format
+      if (!/^https?:\/\/.+(\.(jpg|jpeg|png|gif|webp))$/i.test(message.query)) {
+        return await bot.reply('❌ Invalid image URL! Must start with http/https and end with .jpg, .png, etc.');
       }
+
+      // Download image using Axios
+      const response = await axios.get(message.query, {
+        responseType: 'arraybuffer',
+        timeout: 10000, // 10-second timeout
+        maxContentLength: 10 * 1024 * 1024, // Max 10MB
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (WhatsApp Channel PP Updater)'
+        }
+      });
+
+      if (response.status !== 200) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const buffer = Buffer.from(response.data);
+
+      // Verify it's actually an image
+      const fileInfo = await fileTypeFromBuffer(buffer);
+      if (!fileInfo?.mime.startsWith('image/')) {
+        throw new Error('URL does not point to a valid image');
+      }
+
+      // Check image dimensions (optional)
+      if (buffer.length > 5 * 1024 * 1024) { // 5MB max
+        throw new Error('Image too large (max 5MB)');
+      }
+
+      // Update channel picture
       await bot.sock.newsletterUpdatePicture(message.chat, buffer);
-      await bot.reply('*Profile picture updated!*');
+      await bot.reply('✅ Channel profile picture updated successfully!');
+
     } catch (error) {
-      console.error('Error updating picture:', error);
-      await bot.reply(`*Failed to update picture!*\n_Error: ${error.message || 'Unknown error'}_`);
+      console.error('CHPP Error:', error);
+      await bot.reply(`❌ Failed to update picture!\nReason: ${error.message || 'Invalid image'}`);
     }
   }
 );
@@ -160,19 +192,21 @@ bot(
     if (!message.chat.endsWith('@newsletter')) return await bot.reply('This command is for channels only!');
     
     try {
-      await handleRateLimit();
-      const metadata = await bot.sock.newsletterMetadata('direct', message.chat.split('@')[0]);
+      const metadata = await bot.sock.newsletterMetadata('jid', message.chat);
       if (!metadata) return await bot.reply('Failed to get channel info');
 
       const adminCount = await bot.sock.newsletterAdminCount(message.chat);
-      const inviteLink = `https://whatsapp.com/channel/${message.chat.split('@')[0]}`;
+      const inviteLink = `https://whatsapp.com/channel/${metadata.invite}`;
 
       const infoMessage = `*Channel Info*\n\n` +
         `🔹 *Name:* ${metadata.name}\n` +
         `🔹 *Desc:* ${metadata.description || 'None'}\n` +
+        `🔹 *Subscribers:* ${metadata.subscribers}\n` +
         `🔹 *Admins:* ${adminCount}\n` +
-        `🔹 *Created:* ${new Date(metadata.creation * 1000).toLocaleDateString()}\n` +
-        `🔹 *Link:* ${inviteLink}\n`;
+        `🔹 *Created:* ${new Date(metadata.creation_time * 1000).toLocaleString()}\n` +
+        `🔹 *Link:* ${inviteLink}\n` +
+        `🔹 *Status:* ${metadata.state.toLowerCase()}\n` +
+        `🔹 *Verification:* ${metadata.verification.toLowerCase()}\n`;
 
       await bot.reply(infoMessage);
     } catch (error) {
@@ -198,8 +232,7 @@ bot(
       code = code.replace('https://whatsapp.com/channel/', '').split('/')[0];
     }
 
-    try {
-      await handleRateLimit();
+    try{
       await bot.sock.newsletterFollow(`${code}@newsletter`);
       await bot.reply(`*Now following channel!*`);
     } catch (error) {
@@ -220,8 +253,7 @@ bot(
   async (message, bot) => {
     if (!message.chat.endsWith('@newsletter')) return await bot.reply('This command is for channels only!');
     
-    try {
-      await handleRateLimit();
+    try{
       await bot.sock.newsletterUnfollow(message.chat);
       await bot.reply(`*Unfollowed channel.*`);
     } catch (error) {
@@ -242,8 +274,7 @@ bot(
   async (message, bot) => {
     if (!message.chat.endsWith('@newsletter')) return await bot.reply('This command is for channels only!');
     
-    try {
-      await handleRateLimit();
+    try{
       await bot.sock.newsletterMute(message.chat);
       await bot.reply(`*Channel muted.*`);
     } catch (error) {
@@ -264,8 +295,7 @@ bot(
   async (message, bot) => {
     if (!message.chat.endsWith('@newsletter')) return await bot.reply('This command is for channels only!');
     
-    try {
-      await handleRateLimit();
+    try{
       await bot.sock.newsletterUnmute(message.chat);
       await bot.reply(`*Channel unmuted.*`);
     } catch (error) {
@@ -347,13 +377,13 @@ bot(
     try {
       
 
-      const userJid = message.mentionedJid?.[0];
-      if (!userJid) return await bot.reply('Mention a user!');
+      const userJid = message.query;
+      if (!userJid) return await bot.reply('use number as query e.g chowner 234xxxxxx');
       await bot.sock.newsletterChangeOwner(message.chat, userJid);
       
       await bot.reply(
         `*Ownership transferred!*\n` +
-        `@${userJid.split('@')[0]} is now owner.`,
+        `@${userJid} is now owner.`,
         { mentions: [userJid] }
       );
     } catch (error) {
@@ -363,47 +393,6 @@ bot(
   }
 );
 
-// List followed channels
-bot(
-  {
-    name: 'chlist',
-    info: 'List your channels',
-    category: "channel",
-    usage: 'chlist'
-  },
-  async (message, bot) => {
-    try {
-      await handleRateLimit();
-      const updates = await bot.sock.newsletterFetchUpdates(null, 100);
-      
-      if (!updates?.length) return await bot.reply('*No channels found!*');
-
-      const channels = {};
-      updates.forEach(update => {
-        if (!channels[update.jid]) {
-          channels[update.jid] = {
-            name: update.name,
-            lastUpdate: update.timestamp
-          };
-        }
-      });
-
-      let reply = `*Your Channels (${Object.keys(channels).length}):*\n\n`;
-      Object.entries(channels).forEach(([jid, info], index) => {
-        reply += `*${index + 1}. ${info.name || 'No Name'}*\n` +
-                 `ID: ${jid}\n` +
-                 `Last Update: ${new Date(info.lastUpdate * 1000).toLocaleString()}\n\n`;
-      });
-
-      await bot.reply(reply);
-    } catch (error) {
-      console.error('Error listing:', error);
-      await bot.reply(`*Failed to list!*\n_Error: ${error.message || 'Unknown error'}_`);
-    }
-  }
-);
-
-// Toggle reactions
 bot(
   {
     name: 'chreact',
@@ -443,21 +432,26 @@ bot(
     if (count < 1 || count > 20) return await bot.reply('Between 1-20 only!');
 
     try {
-      await handleRateLimit();
-      const messages = await bot.sock.newsletterFetchMessages('direct', message.chat.split('@')[0], count);
+      const messages = await bot.sock.newsletterFetchMessages('direct', message.chat.split('@')[0], count.toString());
 
       if (!messages?.length) return await bot.reply('No messages found!');
 
       let reply = `*Last ${messages.length} messages:*\n\n`;
       messages.forEach((msg, index) => {
-        reply += `*${index + 1}:* ${msg.content || '(media)'}\n` +
-                 `- ${new Date(msg.timestamp * 1000).toLocaleString()}\n\n`;
+        const messageContent = msg.message?.message?.conversation || 
+                             msg.message?.message?.extendedTextMessage?.text || 
+                             '(media or unsupported message type)';
+        
+        reply += `*${index + 1}:* ${messageContent}\n` +
+                 `- Date: ${new Date(msg.message.messageTimestamp * 1000).toLocaleString()}\n` +
+                 `- Views: ${msg.views}\n` +
+                 `- Reactions: ${msg.reactions.length}\n\n`;
       });
 
       await bot.reply(reply);
     } catch (error) {
-      console.error('Error fetching:', error);
-      await bot.reply(`*Failed to fetch!*\n_Error: ${error.message || 'Unknown error'}_`);
+      console.error('Error fetching channel messages:', error);
+      await bot.reply(`*Failed to fetch messages!*\n_Error: ${error.message || 'Unknown error'}_`);
     }
   }
 );
