@@ -94,10 +94,6 @@ bot(
     }
   }
 );
-
-// Set channel profile picture
-// For image validation
-
 bot(
   {
     name: 'chpp',
@@ -115,37 +111,15 @@ bot(
     }
 
     try {
-      // Validate URL format
-      if (!/^https?:\/\/.+(\.(jpg|jpeg|png|gif|webp))$/i.test(message.query)) {
-        return await bot.reply('❌ Invalid image URL! Must start with http/https and end with .jpg, .png, etc.');
-      }
-
       // Download image using Axios
       const response = await axios.get(message.query, {
         responseType: 'arraybuffer',
-        timeout: 10000, // 10-second timeout
-        maxContentLength: 10 * 1024 * 1024, // Max 10MB
         headers: {
-          'User-Agent': 'Mozilla/5.0 (WhatsApp Channel PP Updater)'
+          'User-Agent': 'Mozilla/5.0'
         }
       });
 
-      if (response.status !== 200) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
       const buffer = Buffer.from(response.data);
-
-      // Verify it's actually an image
-      const fileInfo = await fileTypeFromBuffer(buffer);
-      if (!fileInfo?.mime.startsWith('image/')) {
-        throw new Error('URL does not point to a valid image');
-      }
-
-      // Check image dimensions (optional)
-      if (buffer.length > 5 * 1024 * 1024) { // 5MB max
-        throw new Error('Image too large (max 5MB)');
-      }
 
       // Update channel picture
       await bot.sock.newsletterUpdatePicture(message.chat, buffer);
@@ -153,7 +127,7 @@ bot(
 
     } catch (error) {
       console.error('CHPP Error:', error);
-      await bot.reply(`❌ Failed to update picture!\nReason: ${error.message || 'Invalid image'}`);
+      await bot.reply(`❌ Failed to update picture!\nReason: ${error.message || 'Invalid image URL'}`);
     }
   }
 );
@@ -364,27 +338,38 @@ bot(
 );
 
 // Change channel owner
+// Change channel owner
 bot(
   {
     name: 'chowner',
     info: 'Transfer channel ownership',
     category: "channel",
-    usage: 'chowner @user'
+    usage: 'chowner 2349123721026'
   },
   async (message, bot) => {
     if (!message.chat.endsWith('@newsletter')) return await bot.reply('This command is for channels only!');
     
     try {
+      let userQuery = message.query.trim();
+      if (!userQuery) return await bot.reply('Please provide a number, e.g. chowner 2349123721026');
       
-
-      const userJid = message.query;
-      if (!userJid) return await bot.reply('use number as query e.g chowner 234xxxxxx');
-      await bot.sock.newsletterChangeOwner(message.chat, userJid);
+      // Format the number properly
+      if (!userQuery.includes('@s.whatsapp.net')) {
+        userQuery = `${userQuery.replace(/[^0-9]/g, '')}@s.whatsapp.net`;
+      }
+      
+      // Check if the user is on WhatsApp and get their LID
+      const [userCheck] = await bot.sock.onWhatsApp(userQuery);
+      if (!userCheck?.exists) return await bot.reply('User not found on WhatsApp');
+      
+      const userLid = userCheck.lid;
+      if (!userLid) return await bot.reply('Could not get user LID');
+      
+      await bot.sock.newsletterChangeOwner(message.chat, userLid);
       
       await bot.reply(
         `*Ownership transferred!*\n` +
-        `@${userJid} is now owner.`,
-        { mentions: [userJid] }
+        `New owner: ${userCheck.jid.split('@')[0]}`
       );
     } catch (error) {
       console.error('Error transferring:', error);
@@ -428,24 +413,38 @@ bot(
   async (message, bot) => {
     if (!message.chat.endsWith('@newsletter')) return await bot.reply('This command is for channels only!');
     
-    const count = parseInt(message.query) || 5;
-    if (count < 1 || count > 20) return await bot.reply('Between 1-20 only!');
+    const count = parseInt(message.query);
+    if (isNaN(count) || count < 1 || count > 20) return await bot.reply('Between 1-20 only!');
 
     try {
-      const messages = await bot.sock.newsletterFetchMessages('direct', message.chat.split('@')[0], count.toString());
+      const messages = await bot.sock.newsletterFetchMessages('jid', message.chat, count.toString());
 
       if (!messages?.length) return await bot.reply('No messages found!');
 
       let reply = `*Last ${messages.length} messages:*\n\n`;
       messages.forEach((msg, index) => {
-        const messageContent = msg.message?.message?.conversation || 
-                             msg.message?.message?.extendedTextMessage?.text || 
-                             '(media or unsupported message type)';
+        // Extract message content
+        let messageContent = '';
+        if (msg.message?.message) {
+          if (msg.message.message.conversation) {
+            messageContent = msg.message.message.conversation;
+          } else if (msg.message.message.extendedTextMessage?.text) {
+            messageContent = msg.message.message.extendedTextMessage.text;
+          } else if (msg.message.message.imageMessage) {
+            messageContent = '[Image]';
+          } else if (msg.message.message.videoMessage) {
+            messageContent = '[Video]';
+          } else {
+            messageContent = '[Media or unsupported message type]';
+          }
+        } else {
+          messageContent = '[No message content]';
+        }
         
         reply += `*${index + 1}:* ${messageContent}\n` +
                  `- Date: ${new Date(msg.message.messageTimestamp * 1000).toLocaleString()}\n` +
-                 `- Views: ${msg.views}\n` +
-                 `- Reactions: ${msg.reactions.length}\n\n`;
+                 `- Views: ${msg.views || 0}\n` +
+                 `- Reactions: ${msg.reactions?.length || 0}\n\n`;
       });
 
       await bot.reply(reply);
