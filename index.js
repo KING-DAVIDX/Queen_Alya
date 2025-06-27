@@ -177,12 +177,17 @@ async function downloadSessionFilesFromGitHub(sessionFolderName) {
         throw new Error(`Prefix doesn't match. Expected prefix: "${prefa}"`);
     }
 
+    // Extract the session folder name after the prefix
     const folderName = sessionFolderName.slice(prefa.length);
     
     try {
+        // Construct the correct path to the session folder in GitHub
+        // From your example: https://github.com/KING-DAVIDX/Creds-storage/tree/main/sessions/session_b1962924-9593-4df3-8a79-c7c3e86d0373
+        const githubPath = `sessions/${folderName}`;
+        
         // First get the list of files in the session folder
         const listResponse = await fetch(
-            `https://api.github.com/repos/${REPO_OWNER}/${CREDS_REPO_NAME}/contents/sessions/${folderName}`,
+            `https://api.github.com/repos/${REPO_OWNER}/${CREDS_REPO_NAME}/contents/${githubPath}`,
             {
                 headers: {
                     'Authorization': `token ${GITTOKEN}`,
