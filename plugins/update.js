@@ -30,10 +30,10 @@ bot(
         try {
             const isUpdateNow = message.query.includes('now');
             
-            // Get current version (from package.json or version file)
+            // Get current version
             let currentVersion = 'unknown';
             try {
-                const packageJson = JSON.parse(fs.readFileSync(path.join(__dirname, '../package.json'), 'utf-8'));
+                const packageJson = JSON.parse(fs.readFileSync(path.join(__dirname, '../package.json'), 'utf-8');
                 currentVersion = packageJson.version || 'unknown';
             } catch (e) {}
             
@@ -75,48 +75,92 @@ bot(
                 return;
             }
 
-            // Start update process
-            await bot.reply("🔄 *Starting Update Process...*\n\nDownloading latest version...");
+            // Start update process with loading message
+            let { key } = await bot.reply("🔄 *Starting Update Process...*");
 
-            // 1. Download latest version
-            await bot.reply("⬇️ Downloading updates...");
-            const zipUrl = `https://github.com/KING-DAVIDX/Queen_Alya/archive/refs/heads/main.zip`;
-            const zipBuffer = await downloadFile(zipUrl);
-            
-            // 2. Extract update
-            await bot.reply("📦 Extracting updates...");
-            const updateDir = path.join(__dirname, '../update_temp');
-            if (fs.existsSync(updateDir)) {
+            const updateMessage = async (text) => {
+                await bot.sock.sendMessage(message.chat, { 
+                    text, 
+                    edit: key 
+                });
+            };
+
+            try {
+                // 1. Download latest version
+                await updateMessage("⬇️ Downloading updates...");
+                const zipUrl = `https://github.com/KING-DAVIDX/Queen_Alya/archive/refs/heads/main.zip`;
+                const zipBuffer = await downloadFile(zipUrl);
+                
+                // 2. Extract update
+                await updateMessage("📦 Extracting updates...");
+                const updateDir = path.join(__dirname, '../update_temp');
+                if (fs.existsSync(updateDir)) {
+                    fs.rmSync(updateDir, { recursive: true });
+                }
+                fs.mkdirSync(updateDir);
+                
+                const zip = new AdmZip(zipBuffer);
+                zip.extractAllTo(updateDir, true);
+                
+                // Get the extracted folder
+                const extractedDir = path.join(updateDir, fs.readdirSync(updateDir)[0]);
+
+                // Check if package.json changed
+                let shouldInstallDeps = false;
+                if (UPDATE_TARGETS.includes('package.json')) {
+                    const oldPackageJson = path.join(__dirname, '../package.json');
+                    const newPackageJson = path.join(extractedDir, 'package.json');
+                    
+                    if (fs.existsSync(oldPackageJson) && fs.existsSync(newPackageJson)) {
+                        const oldContent = fs.readFileSync(oldPackageJson, 'utf-8');
+                        const newContent = fs.readFileSync(newPackageJson, 'utf-8');
+                        shouldInstallDeps = oldContent !== newContent;
+                    }
+                }
+
+                // 3. Apply updates
+                await updateMessage("🔄 Applying updates...");
+                await applyUpdate(extractedDir);
+
+                // 4. Clean up
                 fs.rmSync(updateDir, { recursive: true });
+
+                // 5. Install dependencies if package.json changed
+                if (shouldInstallDeps) {
+                    try {
+                        await updateMessage("📦 Installing dependencies...");
+                        execSync('npm install', { 
+                            cwd: path.join(__dirname, '..'), 
+                            stdio: 'inherit',
+                            timeout: 120000 // 2 minute timeout
+                        });
+                    } catch (npmError) {
+                        console.error('NPM install failed:', npmError);
+                        await updateMessage("⚠️ Update applied but npm install failed. Check logs for details.");
+                    }
+                }
+
+                // Success message
+                const successMsg = `✅ *Update Successful!*\n\n` +
+                                 `Queen Alya has been updated to version ${latestCommit.sha.substring(0, 7)}\n\n` +
+                                 `🔹 *Latest Changes:*\n${latestCommit.commit.message}\n\n` +
+                                 `The bot will now restart...`;
+                
+                await updateMessage(successMsg);
+
+            } catch (error) {
+                console.error('Update error:', error);
+                let errorMsg = "❌ *Update Failed*\n\n";
+                
+                if (error.response) {
+                    errorMsg += `GitHub API Error: ${error.response.status} - ${error.response.statusText}`;
+                } else {
+                    errorMsg += error.message;
+                }
+                
+                await updateMessage(errorMsg);
+                return;
             }
-            fs.mkdirSync(updateDir);
-            
-            const zip = new AdmZip(zipBuffer);
-            zip.extractAllTo(updateDir, true);
-            
-            // Get the extracted folder (GitHub adds 'repo-main' suffix)
-            const extractedDir = path.join(updateDir, fs.readdirSync(updateDir)[0]);
-
-            // 3. Apply updates
-            await bot.reply("🔄 Applying updates...");
-            await applyUpdate(extractedDir);
-
-            // 4. Clean up
-            fs.rmSync(updateDir, { recursive: true });
-
-            // 5. Install dependencies if package.json was updated
-            if (UPDATE_TARGETS.includes('package.json')) {
-                await bot.reply("📦 Installing dependencies...");
-                execSync('npm install', { cwd: path.join(__dirname, '..'), stdio: 'inherit' });
-            }
-
-            // Success message
-            const successMsg = `✅ *Update Successful!*\n\n` +
-                             `Queen Alya has been updated to version ${latestCommit.sha.substring(0, 7)}\n\n` +
-                             `🔹 *Latest Changes:*\n${latestCommit.commit.message}\n\n` +
-                             `The bot will now restart to apply changes...`;
-            
-            await bot.reply(successMsg);
 
             // Restart the bot
             setTimeout(() => {
@@ -125,15 +169,7 @@ bot(
 
         } catch (error) {
             console.error('Update error:', error);
-            let errorMsg = "❌ *Update Failed*\n\n";
-            
-            if (error.response) {
-                errorMsg += `GitHub API Error: ${error.response.status} - ${error.response.statusText}`;
-            } else {
-                errorMsg += error.message;
-            }
-            
-            await bot.reply(errorMsg);
+            await bot.reply("❌ *Update Failed*\n\n" + error.message);
         }
     }
 );
