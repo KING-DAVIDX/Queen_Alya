@@ -43,6 +43,11 @@ bot(
         ]
     },
     async (message, bot) => {
+        // Verify owner status before allowing command execution
+        if (!message.isOwner(message.sender)) {
+            return await bot.reply("This command is only available to the bot owner.");
+        }
+
         const action = message.args[0]?.toLowerCase();
         const config = require(pmBlockerState.configFile);
 
@@ -85,7 +90,9 @@ bot(
     async (message, bot) => {
         try {
             // Skip if not a private message or if message is from the bot itself
-            if (message.chat.endsWith('@g.us') || message.key.fromMe) return;
+            if (message.chat.endsWith('@g.us') || 
+                message.chat.endsWith('@newsletter') || 
+                message.key.fromMe) return;
             
             const config = require(pmBlockerState.configFile);
             
@@ -94,8 +101,8 @@ bot(
             
             const sender = message.sender;
             
-            // Skip if sender is owner
-            if (sender === config.OWNER_NUMBER + '@s.whatsapp.net') return;
+            // Skip if sender is owner (with proper verification)
+            if (message.isOwner && message.isOwner(sender)) return;
             
             // Get current warning count
             const warningCount = pmBlockerState.warningCounts.get(sender) || 0;
