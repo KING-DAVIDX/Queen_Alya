@@ -9,6 +9,7 @@ const config = {
   PREFIX: "." || process.env.PREFIX,
   BOT_NAME: "QUEEN_ALYA" || process.env.BOT_NAME,
   OWNER_NAME: "KING" || process.env.OWNER_NAME,
+  CAPTION: "> QUEEN ALYA" || process.env.CAPTION,
   MODE: "private" || process.env.MODE,
   OWNER_NUMBER: "2349123721026" || process.env.OWNER_NUMBER,
   PM_BLOCKER: "true" || process.env.PM_BLOCKER,
@@ -31,7 +32,7 @@ const config = {
   AUTO_STATUS: "true" || process.env.AUTO_STATUS,
   AUTO_STATUS_EMOJI: "👑" || process.env.AUTO_STATUS_EMOJI, 
   CHAT_BOT: "false" || process.env.CHAT_BOT,
-  AUTO_SAVE_STATUS: "true" || process.env.AUTO_SAVE_STATUS,
+  AUTO_SAVE_STATUS: "false" || process.env.AUTO_SAVE_STATUS,
   SAVE_STATUS_FROM: "2348100835767,2346277893334" || process.env.SAVE_STATUS_FROM
 };
 
