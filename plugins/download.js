@@ -3,7 +3,7 @@ const yts = require('yt-search');
 const bot = require("../lib/plugin");
 const config = require('../config');
 const prefix = config.PREFIX;
-const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args))
+const fetch = require("node-fetch");
 async function ytaudio(url) {
   try {
     const k = await fetch(`https://kord-api.vercel.app/ytmp3?url=${encodeURIComponent(url)}`)
