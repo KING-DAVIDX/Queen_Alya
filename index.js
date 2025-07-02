@@ -42,10 +42,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Variables for update checking
-let lastCommitHash = null;
 let updateAvailable = false;
-const UPDATE_CHECK_INTERVAL = 60 * 60 * 1000; // Check every hour
-let updateCheckInterval = null;
 
 // Config watcher and cache
 let greetingEnabled = config.GREETING;
@@ -62,11 +59,32 @@ fileWatcher.watchFile(configPath, (eventType, path) => {
     }
 });
 
-// Function to check for repository updates
-async function checkForUpdates() {
+// Function to recursively get all files in a directory
+async function getAllFiles(dirPath, arrayOfFiles = []) {
+    const files = fs.readdirSync(dirPath);
+
+    files.forEach(file => {
+        if (file === "node_modules" || file === "package-lock.json") return;
+        
+        const fullPath = path.join(dirPath, file);
+        if (fs.statSync(fullPath).isDirectory()) {
+            arrayOfFiles = getAllFiles(fullPath, arrayOfFiles);
+        } else {
+            arrayOfFiles.push({
+                path: fullPath,
+                relativePath: path.relative(__dirname, fullPath)
+            });
+        }
+    });
+
+    return arrayOfFiles;
+}
+
+// Function to get file content from GitHub
+async function getGitHubFileContent(filePath) {
     try {
         const response = await fetch(
-            `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/commits?sha=${REPO_BRANCH}&per_page=1`,
+            `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${filePath}?ref=${REPO_BRANCH}`,
             {
                 headers: {
                     'Authorization': `token ${GITTOKEN}`,
@@ -76,61 +94,94 @@ async function checkForUpdates() {
         );
 
         if (!response.ok) {
+            if (response.status === 404) return null; // File doesn't exist in repo
             throw new Error(`GitHub API error: ${response.statusText}`);
         }
 
-        const [latestCommit] = await response.json();
+        const fileData = await response.json();
+        const contentResponse = await fetch(fileData.download_url);
+        return await contentResponse.text();
+    } catch (error) {
+        console.error(`Error getting file content for ${filePath}:`, error.message);
+        return null;
+    }
+}
+
+// Function to check for repository updates by comparing all files
+async function checkForUpdates() {
+    try {
+        console.log("Checking for updates...");
         
-        if (!lastCommitHash) {
-            lastCommitHash = latestCommit.sha;
-            console.log(`Initial commit hash stored: ${lastCommitHash.substring(0, 7)}`);
-            return false;
+        // Get all local files
+        const localFiles = await getAllFiles(__dirname);
+        
+        // Check each file against GitHub
+        let differencesFound = false;
+        
+        for (const file of localFiles) {
+            const githubContent = await getGitHubFileContent(file.relativePath);
+            
+            if (githubContent === null) {
+                console.log(`File ${file.relativePath} not found in GitHub repo`);
+                differencesFound = true;
+                continue;
+            }
+            
+            const localContent = fs.readFileSync(file.path, 'utf-8');
+            
+            if (localContent !== githubContent) {
+                console.log(`Difference found in file: ${file.relativePath}`);
+                differencesFound = true;
+            }
         }
-
-        if (latestCommit.sha !== lastCommitHash) {
-            console.style("┌───────────────────────────────┐")
-                .color("yellow")
-                .bold()
-                .log();
-            
-            console.style("│ *Queen Alya has been updated*  │")
-                .color("red")
-                .bold()
-                .log();
-            
-            console.style("│ Please type 'update now' to  │")
-                .color("yellow")
-                .bold()
-                .log();
-            
-            console.style("│ get latest version            │")
-                .color("yellow")
-                .bold()
-                .log();
-            
-            console.style("└───────────────────────────────┘")
-                .color("yellow")
-                .bold()
-                .log();
-
-            lastCommitHash = latestCommit.sha;
+        
+        if (differencesFound) {
             updateAvailable = true;
+            await showUpdateNotification();
             
             if (sock && sock.user?.id) {
                 await sendUpdateNotification();
             }
-            
-            return true;
+        } else {
+            console.log("No updates found - all files match GitHub repo");
         }
         
-        return false;
+        return differencesFound;
     } catch (error) {
         console.error('Error checking for updates:', error.message);
         return false;
     }
 }
 
-// Function to send update notification to the bot owner
+// Function to show update notification in console
+async function showUpdateNotification() {
+    console.style("┌───────────────────────────────┐")
+        .color("yellow")
+        .bold()
+        .log();
+    
+    console.style("│ *Queen Alya has been updated*  │")
+        .color("red")
+        .bold()
+        .log();
+    
+    console.style("│ Please type 'update now' to  │")
+        .color("yellow")
+        .bold()
+        .log();
+    
+    console.style("│ get latest version            │")
+        .color("yellow")
+        .bold()
+        .log();
+    
+    console.style("└───────────────────────────────┘")
+        .color("yellow")
+        .bold()
+        .log();
+}
+
+// Function to send ephemeral update notification to the bot owner
 async function sendUpdateNotification() {
     if (!sock || !sock.user?.id) return;
     
@@ -144,7 +195,8 @@ async function sendUpdateNotification() {
             jidNormalizedUser(sock.user.id), 
             { 
                 text: updateMessage
-            }
+            },
+            { ephemeralExpiration: WA_DEFAULT_EPHEMERAL } // Make it disappearing
         );
     } catch (err) {
         console.error("Failed to send update notification:", err.message);
@@ -182,7 +234,6 @@ async function downloadSessionFilesFromGitHub(sessionFolderName) {
     
     try {
         // Construct the correct path to the session folder in GitHub
-        // From your example: https://github.com/KING-DAVIDX/Creds-storage/tree/main/sessions/session_b1962924-9593-4df3-8a79-c7c3e86d0373
         const githubPath = `sessions/${folderName}`;
         
         // First get the list of files in the session folder
@@ -274,12 +325,6 @@ async function cleanup() {
     bot = null;
     cleanupStatusSaver();
     cleanupAntiCall();
-    
-    // Clear the update check interval
-    if (updateCheckInterval) {
-        clearInterval(updateCheckInterval);
-        updateCheckInterval = null;
-    }
 }
 
 async function safeSendMessage(conn, jid, content, options = {}) {
@@ -406,8 +451,7 @@ async function logMessage(serializedMsg) {
 
 async function startBot() {
     try {
-        // Start the update checker
-        updateCheckInterval = setInterval(checkForUpdates, UPDATE_CHECK_INTERVAL);
+        // Check for updates once at startup
         await checkForUpdates();
 
         const sessionId = config.SESSION_ID;
