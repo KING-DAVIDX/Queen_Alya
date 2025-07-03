@@ -2,7 +2,6 @@ const fs = require('fs');
 const path = require('path');
 const bot = require("../lib/plugin");
 const config = require("../config");
-const { menuModule } = require("../lib/menu");
 
 // Plugin: Command Finder
 bot(
@@ -20,13 +19,15 @@ bot(
         return await bot.reply("Please specify a command to search for. Example: *findcmd ping*");
       }
 
-      // Get all plugins from the plugin system using menuModule
-      if (!menuModule || !menuModule.pluginSystem) {
+      // Get all plugins from the bot's plugin system
+      if (!bot.plugins || !Array.isArray(bot.plugins)) {
         return await bot.reply("❌ Plugin system not initialized. Try again later.");
       }
       
-      const plugins = menuModule.pluginSystem.getPlugins();
-      const commandPlugins = plugins.commands.filter(cmd => cmd.name && cmd.name !== "menu");
+      // Filter out non-command plugins and the menu command
+      const commandPlugins = bot.plugins.filter(
+        cmd => cmd.name && typeof cmd.name === 'string' && cmd.name !== "menu"
+      );
       
       // Find the command (case insensitive)
       const command = commandPlugins.find(
@@ -87,12 +88,24 @@ bot(
 async function getCommandFileInfo(cmdName) {
   try {
     const pluginsDir = path.join(__dirname, '..', 'plugins');
+    if (!fs.existsSync(pluginsDir)) {
+      console.error('Plugins directory not found');
+      return null;
+    }
+
     const pluginFiles = fs.readdirSync(pluginsDir)
       .filter(file => file.endsWith('.js') && file !== 'find.js');
     
     for (const file of pluginFiles) {
       const filePath = path.join(pluginsDir, file);
-      const content = fs.readFileSync(filePath, 'utf-8');
+      let content;
+      
+      try {
+        content = fs.readFileSync(filePath, 'utf-8');
+      } catch (e) {
+        console.error(`Error reading file ${file}:`, e);
+        continue;
+      }
       
       // Extract plugin definition (improved regex)
       const pluginMatch = content.match(/bot\(\s*{([\s\S]*?)}\s*,\s*async\s*\(/);
@@ -101,7 +114,7 @@ async function getCommandFileInfo(cmdName) {
       try {
         // Safely evaluate the plugin object
         const pluginObj = Function(`return (${pluginMatch[0].replace(/,\s*async\s*\(/, '')})`)();
-        if (pluginObj && pluginObj.name && pluginObj.name.toLowerCase() === cmdName.toLowerCase()) {
+        if (pluginObj?.name?.toLowerCase() === cmdName.toLowerCase()) {
           return {
             fileName: file,
             location: `plugins/${file}`
@@ -113,7 +126,7 @@ async function getCommandFileInfo(cmdName) {
       }
     }
   } catch (err) {
-    console.error('Error reading plugins directory:', err);
+    console.error('Error searching plugins:', err);
   }
   return null;
 }
