@@ -6,55 +6,47 @@ const prefix = config.PREFIX;
 const fetch = require("node-fetch");
 async function ytaudio(url) {
   try {
-    const k = await fetch(`https://kord-api.vercel.app/ytmp3?url=${encodeURIComponent(url)}`)
-    const d = await k.json()
+    const response = await fetch(`https://kord-api.vercel.app/ytmp3?url=${encodeURIComponent(url)}`);
+    const data = await response.json();
 
-    if (d.status) {
+    if (data.success) {
       return {
-        url: d.data.downloadUrl,
-        title: d.data.title
-      }
+        url: data.data.downloadUrl,
+        title: data.data.title,
+        filesize: data.data.filesize,
+        type: data.data.type,
+        quality: data.data.quality,
+        previewUrl: data.data.previewUrl
+      };
     } else {
-      const g = await fetch(`https://kord-api.vercel.app/yt-savetube?url=${encodeURIComponent(url)}&type=mp3`)
-      const data = await g.json()
-
-      if (data.status && data.code === 200) {
-        return {
-          url: data.result.download,
-          title: data.result.title
-        }
-      }
+      throw new Error('Failed to fetch audio: API returned non-success status');
     }
   } catch (err) {
-    console.error(err)
-    return err
+    console.error('Audio download error:', err);
+    throw err; // Re-throw the error for the caller to handle
   }
 }
 
 async function ytvideo(url) {
   try {
-    const k = await fetch(`https://kord-api.vercel.app/ytmp4?url=${encodeURIComponent(url)}`)
-    const d = await k.json()
+    const response = await fetch(`https://kord-api.vercel.app/ytmp4?url=${encodeURIComponent(url)}`);
+    const data = await response.json();
 
-    if (d.status) {
+    if (data.success) {
       return {
-        url: d.data.downloadUrl,
-        title: d.data.title
-      }
+        url: data.data.downloadUrl,
+        title: data.data.title,
+        filesize: data.data.filesize,
+        type: data.data.type,
+        quality: data.data.quality,
+        previewUrl: data.data.previewUrl
+      };
     } else {
-      const g = await fetch(`https://kord-api.vercel.app/yt-savetube?url=${encodeURIComponent(url)}&type=360`)
-      const data = await g.json()
-
-      if (data.status && data.code === 200) {
-        return {
-          url: data.result.download,
-          title: data.result.title
-        }
-      }
+      throw new Error('Failed to fetch video: API returned non-success status');
     }
   } catch (err) {
-    console.error('ytvideo error:', err)
-    return err
+    console.error('Video download error:', err);
+    throw err; // Re-throw the error for the caller to handle
   }
 }
 
