@@ -18,7 +18,7 @@ bot(
       }
 
       // Search for the command in plugins directory only
-      const pluginsDir = path.join(__dirname, '../plugins');
+     const pluginsDir = __dirname;
       const commandInfo = await findCommandInfo(query.toLowerCase(), pluginsDir);
       
       if (!commandInfo) {
