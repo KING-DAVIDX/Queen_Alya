@@ -60,23 +60,28 @@ fileWatcher.watchFile(configPath, (eventType, path) => {
 });
 
 // Function to recursively get all files in a directory
-async function getAllFiles(dirPath, arrayOfFiles = []) {
-    const files = fs.readdirSync(dirPath);
+async function getAllFiles(dirPath) {
+    const arrayOfFiles = [];
+    
+    async function readDirectory(currentPath) {
+        const files = fs.readdirSync(currentPath);
 
-    files.forEach(file => {
-        if (file === "node_modules" || file === "package-lock.json") return;
-        
-        const fullPath = path.join(dirPath, file);
-        if (fs.statSync(fullPath).isDirectory()) {
-            arrayOfFiles = getAllFiles(fullPath, arrayOfFiles);
-        } else {
-            arrayOfFiles.push({
-                path: fullPath,
-                relativePath: path.relative(__dirname, fullPath)
-            });
+        for (const file of files) {
+            if (file === "node_modules" || file === "package-lock.json") continue;
+            
+            const fullPath = path.join(currentPath, file);
+            if (fs.statSync(fullPath).isDirectory()) {
+                await readDirectory(fullPath);
+            } else {
+                arrayOfFiles.push({
+                    path: fullPath,
+                    relativePath: path.relative(__dirname, fullPath)
+                });
+            }
         }
-    });
+    }
 
+    await readDirectory(dirPath);
     return arrayOfFiles;
 }
 
