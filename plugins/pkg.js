@@ -31,7 +31,9 @@ bot(
         let allUsingFiles = [];
         for (const searchPath of searchPaths) {
           const usageInfo = getPackageUsage(packageName, searchPath);
-          allUsingFiles = [...allUsingFiles, ...usageInfo.usingFiles];
+          if (usageInfo.usingFiles && usageInfo.usingFiles.length > 0) {
+            allUsingFiles = [...allUsingFiles, ...usageInfo.usingFiles];
+          }
         }
 
         // Get package size info
@@ -69,6 +71,9 @@ bot(
 // Helper functions for package analysis
 function getAllFiles(dirPath, arrayOfFiles = []) {
   try {
+    // Ensure arrayOfFiles is always an array
+    const resultArray = Array.isArray(arrayOfFiles) ? arrayOfFiles : [];
+    
     const files = fs.readdirSync(dirPath);
     files.forEach(file => {
       // Skip node_modules directory
@@ -76,15 +81,16 @@ function getAllFiles(dirPath, arrayOfFiles = []) {
       
       const fullPath = path.join(dirPath, file);
       if (fs.statSync(fullPath).isDirectory()) {
-        getAllFiles(fullPath, arrayOfFiles);
+        getAllFiles(fullPath, resultArray);
       } else if (fullPath.endsWith('.js') || fullPath.endsWith('.ts')) {
-        arrayOfFiles.push(fullPath);
+        resultArray.push(fullPath);
       }
     });
+    return resultArray;
   } catch (err) {
     // Skip if directory doesn't exist or can't be read
+    return [];
   }
-  return arrayOfFiles;
 }
 
 function getPackageUsage(packageName, projectPath) {

@@ -141,7 +141,7 @@ bot({
 
         await bot.react("✅")
         
-        const caption = `➟ ${videoData.title}\n\n${config().CAPTION}`
+        const caption = `➟ ${videoData.title}\n\n${config.CAPTION}`
         await bot.sock.sendMessage(message.chat, {
             video: { url: videoData.url },
             caption,
@@ -200,7 +200,8 @@ bot({
         
         bot.sock.sendMessage(message.chat, {
             audio: { url: audioData.url },
-            caption: `🎵 ${audioData.title}\n\n${config().CAPTION}`,
+            mimetype: 'audio/mp4',
+            caption: `🎵 ${audioData.title}\n\n${config.CAPTION}`,
             quoted: message
         })
     } catch (err) {
@@ -242,7 +243,7 @@ bot({
 *Uploaded:* ${video.ago}
 *Description:* ${video.description}
 
-${config().CAPTION}`
+${config.CAPTION}`
 
         await bot.react("✅")
         
@@ -289,7 +290,7 @@ bot({
         bot.sock.sendMessage(message.chat, {
             audio: { url: audioDownload.url },
             ptt: false,
-            mimetype: 'audio/mpeg',
+            mimetype: 'audio/mp4',
             contextInfo: {
                 externalAdReply: {
                     title: track.title,
@@ -336,7 +337,7 @@ bot({
 *Published:* ${videoResult.ago}
 *Description:* ${videoResult.description}
 
-${config().CAPTION}`
+${config.CAPTION}`
 
         await bot.react("📤")
         
@@ -446,7 +447,7 @@ bot({
             document: { url: videoInfo.url },
             mimetype: "video/mp4", 
             fileName: `${videoInfo.title}.mp4`,
-            caption: `📱 ${videoInfo.title}\n\n${config().CAPTION}`,
+            caption: `📱 ${videoInfo.title}\n\n${config.CAPTION}`,
             quoted: message
         })
     } catch (e) {
@@ -500,9 +501,9 @@ bot({
         
         return bot.sock.sendMessage(message.chat, {
             audio: { url: audioResult.url },
-            mimetype: 'audio/mpeg',
+            mimetype: 'audio/mp4',
             fileName: `${audioResult.title}.mp3`, 
-            caption: `🎵 ${audioResult.title}\n\n${config().CAPTION}`,
+            caption: `🎵 ${audioResult.title}\n\n${config.CAPTION}`,
             quoted: message
         })
     } catch (e) {
@@ -549,7 +550,7 @@ bot({
         }
 
         const downloadLink = videoData.data.downloadLinks[0].link
-        const videoTitle = `${videoData.data.title || "TikTok Video"}\n${config().CAPTION}`
+        const videoTitle = `${videoData.data.title || "TikTok Video"}\n${config.CAPTION}`
         
         await bot.react("✅")
         
@@ -592,7 +593,7 @@ bot({
         
         return bot.sock.sendMessage(message.chat, {
             [mediaData.type]: { url: mediaUrl },
-            caption: config().CAPTION,
+            caption: config.CAPTION,
             quoted: message
         })
     } catch (error) {
@@ -648,7 +649,7 @@ bot({
         
         return bot.sock.sendMessage(message.chat, {
             video: { url: downloadLink },
-            caption: config().CAPTION
+            caption: config.CAPTION
         })
     } catch (e) {
         console.error(e)
@@ -683,7 +684,7 @@ bot({
         
         return bot.sock.sendMessage(message.chat, {
             [mediaData.type]: { url: mediaUrl },
-            caption: config().CAPTION,
+            caption: config.CAPTION,
             quoted: message
         })
     } catch (e) {
