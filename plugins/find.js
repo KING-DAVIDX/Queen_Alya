@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const bot = require("../lib/plugin");
 const config = require("../config");
+const { menuModule } = require("../lib/menu");
 
 // Plugin: Command Finder
 bot(
@@ -19,8 +20,12 @@ bot(
         return await bot.reply("Please specify a command to search for. Example: *findcmd ping*");
       }
 
-      // Get all plugins from the plugin system (similar to menu.js)
-      const plugins = bot.pluginSystem.getPlugins();
+      // Get all plugins from the plugin system using menuModule
+      if (!menuModule || !menuModule.pluginSystem) {
+        return await bot.reply("❌ Plugin system not initialized. Try again later.");
+      }
+      
+      const plugins = menuModule.pluginSystem.getPlugins();
       const commandPlugins = plugins.commands.filter(cmd => cmd.name && cmd.name !== "menu");
       
       // Find the command (case insensitive)
@@ -32,7 +37,7 @@ bot(
         return await bot.reply(`❌ Command *${query}* not found in available commands.`);
       }
 
-      // Get additional file info (similar to original find.js)
+      // Get additional file info
       const fileInfo = await getCommandFileInfo(command.name);
       
       // Format the response with all available information
