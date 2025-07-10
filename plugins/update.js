@@ -33,7 +33,7 @@ bot(
             // Get current version
             let currentVersion = 'unknown';
             try {
-                const packageJson = JSON.parse(fs.readFileSync(path.join(__dirname, '../package.json'), 'utf-8');
+                const packageJson = JSON.parse(fs.readFileSync(path.join(__dirname, '../package.json'), 'utf-8'));
                 currentVersion = packageJson.version || 'unknown';
             } catch (e) {}
             
@@ -128,15 +128,25 @@ bot(
                 // 5. Install dependencies if package.json changed
                 if (shouldInstallDeps) {
                     try {
-                        await updateMessage("📦 Installing dependencies...");
+                        await updateMessage("📦 Installing dependencies with npm...");
                         execSync('npm install', { 
                             cwd: path.join(__dirname, '..'), 
                             stdio: 'inherit',
                             timeout: 120000 // 2 minute timeout
                         });
                     } catch (npmError) {
-                        console.error('NPM install failed:', npmError);
-                        await updateMessage("⚠️ Update applied but npm install failed. Check logs for details.");
+                        console.error('NPM install failed, trying yarn:', npmError);
+                        try {
+                            await updateMessage("⚠️ npm failed, trying yarn...");
+                            execSync('yarn install', { 
+                                cwd: path.join(__dirname, '..'), 
+                                stdio: 'inherit',
+                                timeout: 120000 // 2 minute timeout
+                            });
+                        } catch (yarnError) {
+                            console.error('Yarn install failed:', yarnError);
+                            await updateMessage("⚠️ Update applied but both npm and yarn install failed. Check logs for details.");
+                        }
                     }
                 }
 
