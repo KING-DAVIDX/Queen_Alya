@@ -67,7 +67,7 @@ async function getAllFiles(dirPath) {
         const files = fs.readdirSync(currentPath);
 
         for (const file of files) {
-            if (file === "node_modules" || file === "package-lock.json") continue;
+            if (file === "node_modules" || file === "package-lock.json" || file === ".gitignore") continue;
             
             const fullPath = path.join(currentPath, file);
             if (fs.statSync(fullPath).isDirectory()) {
