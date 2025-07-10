@@ -595,8 +595,12 @@ async function startBot() {
         });
 
         sock.ev.on('connection.update', async (update) => {
-            const { connection, lastDisconnect } = update;
-            
+            const { connection, lastDisconnect, qr } = update;
+            if (qr && config.QR === "true") {
+            const QRCode = require('qrcode-terminal');
+            QRCode.generate(qr, { small: true });
+        }
+
             if (connection === 'close') {
                 if (lastDisconnect?.error?.output?.statusCode === DisconnectReason.loggedOut) {
                     console.log('Logged out, cleaning session and attempting to reconnect...');
