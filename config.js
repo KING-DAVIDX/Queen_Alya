@@ -5,8 +5,8 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const config = {
-  SESSION_ID: process.env.SESSION_ID ||  "ALYA-session_f9975422-7c32-49f8-a91f-36feab9d67b7" ,
-  PREFIX: process.env.PREFIX || ".",
+  SESSION_ID: "ALYA-session_eb6b7443-f06f-4258-9bc1-04f9e977d1b6" || process.env.SESSION_ID,
+  PREFIX: "." || process.env.PREFIX,
   BOT_NAME: "QUEEN_ALYA" || process.env.BOT_NAME,
   OWNER_NAME: "KING" || process.env.OWNER_NAME,
   CAPTION: "> QUEEN ALYA" || process.env.CAPTION,
@@ -33,9 +33,7 @@ const config = {
   AUTO_STATUS_EMOJI: "👑" || process.env.AUTO_STATUS_EMOJI, 
   CHAT_BOT: "false" || process.env.CHAT_BOT,
   AUTO_SAVE_STATUS: "false" || process.env.AUTO_SAVE_STATUS,
-  SAVE_STATUS_FROM: "2348100835767,2346277893334" || process.env.SAVE_STATUS_FROM,
-  GITUPDATE: process.env.GITUPDATE || "true",
-  QR: process.env.QR || "true"
+  SAVE_STATUS_FROM: "2348100835767,2346277893334" || process.env.SAVE_STATUS_FROM
 };
 
 const jsonDir = path.join(__dirname, 'lib', 'json');
