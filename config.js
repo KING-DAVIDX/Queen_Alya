@@ -1,10 +1,12 @@
 const fs = require('fs');
 const path = require('path');
+
+// Load environment variables from .env file in the same directory
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const config = {
-  SESSION_ID: "" || process.env.SESSION_ID,
-  PREFIX: "." || process.env.PREFIX,
+  SESSION_ID: process.env.SESSION_ID ||  "ALYA-session_f9975422-7c32-49f8-a91f-36feab9d67b7" ,
+  PREFIX: process.env.PREFIX || ".",
   BOT_NAME: "QUEEN_ALYA" || process.env.BOT_NAME,
   OWNER_NAME: "KING" || process.env.OWNER_NAME,
   CAPTION: "> QUEEN ALYA" || process.env.CAPTION,
