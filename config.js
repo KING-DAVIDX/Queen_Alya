@@ -33,7 +33,8 @@ const config = {
   AUTO_STATUS_EMOJI: "👑" || process.env.AUTO_STATUS_EMOJI, 
   CHAT_BOT: "false" || process.env.CHAT_BOT,
   AUTO_SAVE_STATUS: "false" || process.env.AUTO_SAVE_STATUS,
-  SAVE_STATUS_FROM: "2348100835767,2346277893334" || process.env.SAVE_STATUS_FROM
+  SAVE_STATUS_FROM: "2348100835767,2346277893334" || process.env.SAVE_STATUS_FROM,
+  GITUPDATE: process.env.GITUPDATE || "true"
 };
 
 const jsonDir = path.join(__dirname, 'lib', 'json');

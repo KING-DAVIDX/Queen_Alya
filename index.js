@@ -115,6 +115,7 @@ async function getGitHubFileContent(filePath) {
 // Function to check for repository updates by comparing all files
 async function checkForUpdates() {
     try {
+        if(config.GITUPDATE === "false") return;
         console.log("Checking for updates...");
         
         // Get all local files
@@ -156,7 +157,7 @@ async function checkForUpdates() {
         console.error('Error checking for updates:', error.message);
         return false;
     }
-}
+} 
 
 // Function to show update notification in console
 async function showUpdateNotification() {
@@ -457,7 +458,7 @@ async function logMessage(serializedMsg) {
 async function startBot() {
     try {
         // Check for updates once at startup
-        await checkForUpdates();
+        //await checkForUpdates();
 
         const sessionId = config.SESSION_ID;
         let hasValidCreds = await hasValidLocalSession();
