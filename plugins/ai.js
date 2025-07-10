@@ -20,6 +20,7 @@ bot(
   },
   async (message, bot) => {
     try {
+      await bot.react('🤖');
       const query = message.query;
       if (!query) {
         return await bot.reply(`Please provide a message for your AI girlfriend.\nUsage: *${config.PREFIX}aigf [message]*`);
@@ -42,6 +43,7 @@ bot(
   },
   async (message, bot) => {
     try {
+      await bot.react('🤖');
       const query = message.query;
       if (!query) {
         return await bot.reply(`Please provide a message for GPT.\nUsage: *${config.PREFIX}gpt [message]*`);
@@ -64,6 +66,7 @@ bot(
   },
   async (message, bot) => {
     try {
+      await bot.react('🤖');
       const query = message.query;
       if (!query) {
         return await bot.reply(`Please provide a message for Groq AI.\nUsage: *${config.PREFIX}groq [message]*`);
@@ -86,6 +89,7 @@ bot(
   },
   async (message, bot) => {
     try {
+      await bot.react('🤖');
       const query = message.query;
       if (!query) {
         return await bot.reply(`Please provide a message for Powerbrain AI.\nUsage: *${config.PREFIX}powerbrain [message]*`);
@@ -108,6 +112,7 @@ bot(
   },
   async (message, bot) => {
     try {
+      await bot.react('🤖');
       const query = message.query;
       if (!query) {
         return await bot.reply(`Please provide a message for XAI.\nUsage: *${config.PREFIX}xai [message]*`);
@@ -130,6 +135,7 @@ bot(
   },
   async (message, bot) => {
     try {
+      await bot.react('🤖');
       if (message.quoted?.image) {
         // Image analysis mode
         const prompt = message.query || "describe this image";
@@ -172,6 +178,7 @@ bot(
   },
   async (message, bot) => {
     try {
+      await bot.react('🤖');
       const query = message.query;
       if (!query) {
         return await bot.reply(`Please provide a message for Blackbox AI.\nUsage: *${config.PREFIX}blackbox [message]*`);
@@ -194,6 +201,7 @@ bot(
   },
   async (message, bot) => {
     try {
+      await bot.react('🤖');
       const query = message.query;
       if (!query) {
         return await bot.reply(`Please provide text to convert to speech.\nUsage: *${config.PREFIX}tts [text]*`);
@@ -218,7 +226,59 @@ bot(
   }
 );
 
-// Realistic Image Plugin
+// Text2Img Plugin
+bot(
+  {
+    name: "text2img",
+    info: "Generate AI images from text prompts",
+    category: "Ai",
+    usage: "[prompt]",
+  },
+  async (message, bot) => {
+    try {
+      await bot.react('🤖');
+      const query = message.query;
+      if (!query) {
+        return await bot.reply(`Please provide a prompt for the image generation.\nUsage: *${config.PREFIX}text2img [prompt]*`);
+      }
+      
+      const response = await fetch(`https://api.giftedtech.web.id/api/ai/text2img?apikey=_0u5aff45,_0l1876s8qc&prompt=${encodeURIComponent(query)}`);
+      
+      if (!response.ok) throw new Error("API request failed");
+      
+      const imageBuffer = await response.buffer();
+      
+      await bot.sock.sendMessage(
+        message.chat,
+        {
+          image: imageBuffer,
+          caption: "AI Generated Image",
+          title: "Text2Img Result",
+          subtitle: query,
+          footer: "> © QUEEN ALYA",
+          media: true,
+          interactiveButtons: [
+            {
+              name: "quick_reply",
+              buttonParamsJson: JSON.stringify({
+                display_text: "Generate Again",
+                id: `${config.PREFIX}text2img ${query}`
+              })
+            }
+          ]
+        },
+        {
+          quoted: message
+        }
+      );
+      
+    } catch (error) {
+      await handleError(error, bot, message, "text2img");
+    }
+  }
+);
+
+// Flux Image Plugin
 bot(
   {
     name: "flux",
@@ -228,6 +288,7 @@ bot(
   },
   async (message, bot) => {
     try {
+      await bot.react('🤖');
       const query = message.query;
       if (!query) {
         return await bot.reply(`Please provide a prompt for the image generation.\nUsage: *${config.PREFIX}flux [prompt]*`);
@@ -237,10 +298,29 @@ bot(
       const data = await response.json();
       
       if (data.status && data.BK9 && data.BK9[0]) {
-        await bot.sock.sendMessage(message.chat, {
-          image: { url: data.BK9[0] },
-          caption: '> © QUEEN ALYA'
-        });
+        await bot.sock.sendMessage(
+          message.chat,
+          {
+            image: { url: data.BK9[0] },
+            caption: "Flux Style Image",
+            title: "Flux Image Generation",
+            subtitle: query,
+            footer: "> © QUEEN ALYA",
+            media: true,
+            interactiveButtons: [
+              {
+                name: "quick_reply",
+                buttonParamsJson: JSON.stringify({
+                  display_text: "Generate Again",
+                  id: `${config.PREFIX}flux ${query}`
+                })
+              }
+            ]
+          },
+          {
+            quoted: message
+          }
+        );
       } else {
         await bot.reply("Failed to generate flux image. Please try again later.");
       }
@@ -260,6 +340,7 @@ bot(
   },
   async (message, bot) => {
     try {
+      await bot.react('🤖');
       const prompt = message.query;
       if (!prompt) {
         return await bot.reply(`Please provide a prompt for the image generation.\nUsage: *${config.PREFIX}dalle [prompt]*`);
@@ -271,10 +352,29 @@ bot(
       
       const imageBuffer = await response.buffer();
       
-      await bot.sock.sendMessage(message.chat, {
-        image: imageBuffer,
-        caption: '> © QUEEN ALYA\nGenerated with DALL·E'
-      });
+      await bot.sock.sendMessage(
+        message.chat,
+        {
+          image: imageBuffer,
+          caption: "DALL·E Generated Image",
+          title: "DALL·E Result",
+          subtitle: prompt,
+          footer: "> © QUEEN ALYA",
+          media: true,
+          interactiveButtons: [
+            {
+              name: "quick_reply",
+              buttonParamsJson: JSON.stringify({
+                display_text: "Generate Again",
+                id: `${config.PREFIX}dalle ${prompt}`
+              })
+            }
+          ]
+        },
+        {
+          quoted: message
+        }
+      );
       
     } catch (error) {
       await handleError(error, bot, message, "dalle");
@@ -292,6 +392,7 @@ bot(
   },
   async (message, bot) => {
     try {
+      await bot.react('🤖');
       const availableStyles = ["Headshot", "Anime", "Tattoo", "ID Photo", "Cartoon", "Fantasy 3D"];
       
       const query = message.query;
@@ -315,10 +416,28 @@ bot(
       const imageUrl = await ai.deepimg(prompt, style || "Fantasy 3D");
       
       if (imageUrl) {
-        await bot.sendImage(
+        await bot.sock.sendMessage(
           message.chat,
-          imageUrl,
-          '> © QUEEN ALYA'
+          {
+            image: { url: imageUrl },
+            caption: "Deep Image Generation",
+            title: style ? `${style} Style` : "Fantasy 3D Style",
+            subtitle: prompt,
+            footer: "> © QUEEN ALYA",
+            media: true,
+            interactiveButtons: [
+              {
+                name: "quick_reply",
+                buttonParamsJson: JSON.stringify({
+                  display_text: "Generate Again",
+                  id: `${config.PREFIX}deepimg ${query}`
+                })
+              }
+            ]
+          },
+          {
+            quoted: message
+          }
         );
       } else {
         await bot.reply("Failed to generate image. Please try again later.");
@@ -339,6 +458,7 @@ bot(
   },
   async (message, bot) => {
     try {
+      await bot.react('🤖');
       if (!message.quoted) {
         return await bot.reply(`Please reply to a message containing text or an image to translate!\nUsage: Reply to a message with *${config.PREFIX}translate [lang-code]*`);
       }
@@ -376,6 +496,7 @@ bot(
   },
   async (message, bot) => {
     try {
+      await bot.react('🤖');
       if (!message.quoted?.image) {
         return await bot.reply(`Please reply to an image to extract text!\nUsage: Reply to an image with *${config.PREFIX}ocr*`);
       }

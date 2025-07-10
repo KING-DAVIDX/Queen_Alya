@@ -67,7 +67,7 @@ bot(
         ]
     },
     async (message, bot) => {
-        const action = message.args[0]?.toLowerCase();
+        const action = message.query;
         const config = require(afkState.configFile);
 
         // Check if message is from owner
