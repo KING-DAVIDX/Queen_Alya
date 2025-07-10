@@ -32,6 +32,97 @@ bot(
     }
   }
 );
+bot(
+  {
+    name: "gpt4",
+    info: "Talk to GPT-4 AI",
+    category: "Ai",
+    usage: "[message]"
+  },
+  async (message, bot) => {
+    try {
+      await bot.react('🤖');
+      const query = message.query;
+      if (!query) {
+        return await bot.reply(`Please provide a message for GPT-4.\nUsage: *${config.PREFIX}gpt4 [message]*`);
+      }
+      const response = await fetch(`https://api.giftedtech.web.id/api/ai/gpt4?apikey=_0u5aff45%2C_0l1876s8qc&q=${encodeURIComponent(query)}`);
+      const data = await response.json();
+      await bot.reply(data.result || "No response from GPT-4 API");
+    } catch (error) {
+      await handleError(error, bot, message, "gpt4");
+    }
+  }
+);
+
+bot(
+  {
+    name: "openai",
+    info: "Talk to OpenAI AI",
+    category: "Ai",
+    usage: "[message]"
+  },
+  async (message, bot) => {
+    try {
+      await bot.react('🤖');
+      const query = message.query;
+      if (!query) {
+        return await bot.reply(`Please provide a message for OpenAI.\nUsage: *${config.PREFIX}openai [message]*`);
+      }
+      const response = await fetch(`https://api.giftedtech.web.id/api/ai/openai?apikey=_0u5aff45%2C_0l1876s8qc&q=${encodeURIComponent(query)}`);
+      const data = await response.json();
+      await bot.reply(data.result || "No response from OpenAI API");
+    } catch (error) {
+      await handleError(error, bot, message, "openai");
+    }
+  }
+);
+
+bot(
+  {
+    name: "meta",
+    info: "Talk to Meta Llama AI",
+    category: "Ai",
+    usage: "[message]"
+  },
+  async (message, bot) => {
+    try {
+      await bot.react('🤖');
+      const query = message.query;
+      if (!query) {
+        return await bot.reply(`Please provide a message for Meta Llama.\nUsage: *${config.PREFIX}llama [message]*`);
+      }
+      const response = await fetch(`https://api.giftedtech.web.id/api/ai/meta-llama?apikey=_0u5aff45%2C_0l1876s8qc&q=${encodeURIComponent(query)}`);
+      const data = await response.json();
+      await bot.reply(data.result || "No response from Meta Llama API");
+    } catch (error) {
+      await handleError(error, bot, message, "llama");
+    }
+  }
+);
+
+bot(
+  {
+    name: "gemma",
+    info: "Talk to Gemma AI",
+    category: "Ai",
+    usage: "[message]"
+  },
+  async (message, bot) => {
+    try {
+      await bot.react('🤖');
+      const query = message.query;
+      if (!query) {
+        return await bot.reply(`Please provide a message for Gemma.\nUsage: *${config.PREFIX}gemma [message]*`);
+      }
+      const response = await fetch(`https://api.giftedtech.web.id/api/ai/gemma?apikey=_0u5aff45%2C_0l1876s8qc&q=${encodeURIComponent(query)}`);
+      const data = await response.json();
+      await bot.reply(data.result || "No response from Gemma API");
+    } catch (error) {
+      await handleError(error, bot, message, "gemma");
+    }
+  }
+);
 
 // GPT Plugin
 bot(
@@ -267,9 +358,24 @@ bot(
             }
           ]
         },
-        {
-          quoted: message
+        { 
+    quoted: {
+        key: {
+            fromMe: false,
+            participant: "867051314767696@bot",
+            remoteJid: "@bot"
+        },
+        message: {
+            newsletterAdminInviteMessage: {
+                newsletterJid: "120363401730094494@newsletter",
+                newsletterName: "KING XER",
+                caption: "*MADE WITH 🖤*", // Custom text
+                inviteExpiration: 1752555592, // Plain number (Unix timestamp)
+                jpegThumbnail: null // Optional thumbnail
+            }
         }
+    }
+   }  
       );
       
     } catch (error) {
@@ -317,9 +423,24 @@ bot(
               }
             ]
           },
-          {
-            quoted: message
-          }
+          { 
+    quoted: {
+        key: {
+            fromMe: false,
+            participant: "867051314767696@bot",
+            remoteJid: "@bot"
+        },
+        message: {
+            newsletterAdminInviteMessage: {
+                newsletterJid: "120363401730094494@newsletter",
+                newsletterName: "KING XER",
+                caption: "*MADE WITH 🖤*", // Custom text
+                inviteExpiration: 1752555592, // Plain number (Unix timestamp)
+                jpegThumbnail: null // Optional thumbnail
+            }
+        }
+    }
+   }
         );
       } else {
         await bot.reply("Failed to generate flux image. Please try again later.");
@@ -435,9 +556,24 @@ bot(
               }
             ]
           },
-          {
-            quoted: message
-          }
+          { 
+    quoted: {
+        key: {
+            fromMe: false,
+            participant: "867051314767696@bot",
+            remoteJid: "@bot"
+        },
+        message: {
+            newsletterAdminInviteMessage: {
+                newsletterJid: "120363401730094494@newsletter",
+                newsletterName: "KING XER",
+                caption: "*MADE WITH 🖤*", // Custom text
+                inviteExpiration: 1752555592, // Plain number (Unix timestamp)
+                jpegThumbnail: null // Optional thumbnail
+            }
+        }
+    }
+   }
         );
       } else {
         await bot.reply("Failed to generate image. Please try again later.");
