@@ -123,7 +123,28 @@ bot(
     }
   }
 );
-
+bot(
+  {
+    name: "qwen",
+    info: "Talk to Qwen AI",
+    category: "Ai",
+    usage: "[message]"
+  },
+  async (message, bot) => {
+    try {
+      await bot.react('🤖');
+      const query = message.query;
+      if (!query) {
+        return await bot.reply(`Please provide a message for Qwen.\nUsage: *${config.PREFIX}qwen [message]*`);
+      }
+      const response = await fetch(`https://api.giftedtech.web.id/api/ai/qwen?apikey=_0u5aff45%2C_0l1876s8qc&q=${encodeURIComponent(query)}`);
+      const data = await response.json();
+      await bot.reply(data.result || "No response from Qwen API");
+    } catch (error) {
+      await handleError(error, bot, message, "qwen");
+    }
+  }
+);
 // GPT Plugin
 bot(
   {
@@ -369,7 +390,7 @@ bot(
             newsletterAdminInviteMessage: {
                 newsletterJid: "120363401730094494@newsletter",
                 newsletterName: "KING XER",
-                caption: "*MADE WITH 🖤*", // Custom text
+                caption: "MADE WITH 🖤", // Custom text
                 inviteExpiration: 1752555592, // Plain number (Unix timestamp)
                 jpegThumbnail: null // Optional thumbnail
             }
@@ -380,6 +401,72 @@ bot(
       
     } catch (error) {
       await handleError(error, bot, message, "text2img");
+    }
+  }
+);
+
+bot(
+  {
+    name: "ghibli",
+    info: "Generate AI images from text prompts",
+    category: "Ai",
+    usage: "[prompt]",
+  },
+  async (message, bot) => {
+    try {
+      await bot.react('🤖');
+      const query = message.query;
+      if (!query) {
+        return await bot.reply(`Please provide a prompt for the image generation.\nUsage: *${config.PREFIX}text2img [prompt]*`);
+      }
+      
+      const response = await fetch(`https://api.giftedtech.web.id/api/ai/text2ghibli?apikey=_0u5aff45,_0l1876s8qc&prompt=${encodeURIComponent(query)}`);
+      
+      if (!response.ok) throw new Error("API request failed");
+      
+      const imageBuffer = await response.buffer();
+      
+      await bot.sock.sendMessage(
+        message.chat,
+        {
+          image: imageBuffer,
+          caption: "AI Generated Image",
+          title: "Ghibli Result",
+          subtitle: query,
+          footer: "> © QUEEN ALYA",
+          media: true,
+          interactiveButtons: [
+            {
+              name: "quick_reply",
+              buttonParamsJson: JSON.stringify({
+                display_text: "Generate Again",
+                id: `${config.PREFIX}text2img ${query}`
+              })
+            }
+          ]
+        },
+        { 
+    quoted: {
+        key: {
+            fromMe: false,
+            participant: "867051314767696@bot",
+            remoteJid: "@bot"
+        },
+        message: {
+            newsletterAdminInviteMessage: {
+                newsletterJid: "120363401730094494@newsletter",
+                newsletterName: "KING XER",
+                caption: "MADE WITH 🖤", // Custom text
+                inviteExpiration: 1752555592, // Plain number (Unix timestamp)
+                jpegThumbnail: null // Optional thumbnail
+            }
+        }
+    }
+   }  
+      );
+      
+    } catch (error) {
+      await handleError(error, bot, message, "ghibli");
     }
   }
 );
@@ -434,7 +521,7 @@ bot(
             newsletterAdminInviteMessage: {
                 newsletterJid: "120363401730094494@newsletter",
                 newsletterName: "KING XER",
-                caption: "*MADE WITH 🖤*", // Custom text
+                caption: "MADE WITH 🖤", // Custom text
                 inviteExpiration: 1752555592, // Plain number (Unix timestamp)
                 jpegThumbnail: null // Optional thumbnail
             }
@@ -567,7 +654,7 @@ bot(
             newsletterAdminInviteMessage: {
                 newsletterJid: "120363401730094494@newsletter",
                 newsletterName: "KING XER",
-                caption: "*MADE WITH 🖤*", // Custom text
+                caption: "MADE WITH 🖤", // Custom text
                 inviteExpiration: 1752555592, // Plain number (Unix timestamp)
                 jpegThumbnail: null // Optional thumbnail
             }
