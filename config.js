@@ -11,7 +11,7 @@ const config = {
   OWNER_NAME: "KING" || process.env.OWNER_NAME,
   CAPTION: "> QUEEN ALYA" || process.env.CAPTION,
   MODE: "private" || process.env.MODE,
-  OWNER_NUMBER: "2349123721026" || process.env.OWNER_NUMBER,
+  OWNER_NUMBER: "2349112171078" || process.env.OWNER_NUMBER,
   PM_BLOCKER: "true" || process.env.PM_BLOCKER,
   DELETE: "false" || process.env.DELETE,
   ANTILINK: "false" || process.env.ANTILINK,
