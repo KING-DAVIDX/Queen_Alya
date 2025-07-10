@@ -10,15 +10,12 @@
     "run": "pm2 start index.js --deep-monitoring --attach --name alya || node index.js",
     "start": "pm2 start index.js --attach --name alya",
     "stop": "pm2 stop alya",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "heroku-postbuild": "git clone https://github.com/KING-DAVIDX/Queen_Alya.git temp && mv temp/.git .git && rm -rf temp && npx puppeteer@latest install --y",
-    "fis-heroku-postbuild": "git clone https://github.com/KING-DAVIDX/Queen_Alya.git temp1 && rsync -av temp1/* ./ && rsync -av temp1/.* ./ && rm -rf temp1 && npm i && npx puppeteer@latest install",
-    "postinstall": "npx puppeteer@latest install --y"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "KING-DAVIDX",
   "license": "Apache-2.0",
   "dependencies": {
-    "@nexoracle/utils": "^1.1.18",
+    "@nexoracle/utils": "^1.1.19",
     "adm-zip": "^0.5.16",
     "axios": "^1.3.3",
     "baileys": "npm:baileys-pro@^0.0.5",
@@ -33,7 +30,6 @@
     "node-fetch": "^2.6.1",
     "node-webpmux": "^3.2.1",
     "pm2": "^5.3.0",
-    "puppeteer": "^24.10.2",
     "sqlite": "",
     "sqlite3": "^5.1.7",
     "yt-search": "^2.6.1"
