@@ -1,4 +1,4 @@
-const bot = require("../lib/plugin");
+const pluginSystem = require("../lib/plugin");  // Renamed import to avoid confusion
 const fs = require('fs');
 const path = require('path');
 const util = require('util');
@@ -7,7 +7,7 @@ const util = require('util');
 const installedPlugins = new Map();
 
 // Plugin installation handler (=> prefix)
-bot(
+pluginSystem(
     {
         on: 'text',
         match: /^=>/,  // Match messages starting with =>
@@ -28,7 +28,7 @@ bot(
             // Test if the code is a valid plugin
             const pluginModule = { exports: {} };
             const requireWrapper = (moduleName) => {
-                if (moduleName === "../lib/plugin") return bot;
+                if (moduleName === "../lib/plugin") return pluginSystem;
                 return require(moduleName);
             };
             
@@ -46,7 +46,7 @@ bot(
                               'unnamed_plugin');
             
             // Check if plugin already exists
-            const allPlugins = bot.system.getPlugins();
+            const allPlugins = pluginSystem.getPlugins();
             const existingPlugin = [...allPlugins.commands, ...allPlugins.events].find(
                 p => p.name === pluginName || 
                     (p.options && p.options.name === pluginName)
@@ -57,8 +57,8 @@ bot(
                 return await bot.reply(`Plugin "${pluginName}" is already installed.`);
             }
             
-            // Register the plugin
-            const added = bot.system.bot(pluginModule.exports.options, pluginModule.exports.handler);
+            // Register the plugin using the plugin system directly
+            const added = pluginSystem.bot(pluginModule.exports.options, pluginModule.exports.handler);
             
             if (added) {
                 installedPlugins.set(pluginName, code);
@@ -76,7 +76,7 @@ bot(
 );
 
 // Plugin uninstallation handler (=< prefix)
-bot(
+pluginSystem(
     {
         on: 'text',
         match: /^=</,  // Match messages starting with =<
@@ -108,7 +108,7 @@ bot(
 );
 
 // List temporary plugins handler
-bot(
+pluginSystem(
     {
         on: 'text',
         match: /^=\?/,  // Match messages starting with =?
@@ -122,6 +122,6 @@ bot(
         }
         
         const pluginList = Array.from(installedPlugins.keys()).join('\n• ');
-        await bot.reply(`Temporary pluins :\n• ${pluginList}`);
+        await bot.reply(`Temporary plugins:\n• ${pluginList}`);
     }
 );
