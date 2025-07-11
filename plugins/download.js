@@ -1,5 +1,6 @@
 const { extractUrlsFromString } = require('baileys');
 const yts = require('yt-search');
+const axios = require('axios');
 const bot = require("../lib/plugin");
 const config = require('../config');
 const prefix = config.PREFIX;
@@ -685,41 +686,43 @@ bot({
     }
 })
 
-bot({
+bot(
+  {
     name: "gitclone",
-    aliases: ["gitdl"],
-    info: "download the zip file of a repo link",
-    category: "downloader" 
-}, async (message, bot) => {
-    const repoInput = message.query || message.quoted?.text
-    
-    if (!repoInput) {
-        return bot.reply("*Provide a GitHub repository link!*")
-    }
-
+    info: "Download a GitHub repo as ZIP",
+    category: "Utility",
+    usage: "[GitHub URL]",
+  },
+  async (message, bot) => {
     try {
-        const detectedLinks = await extractUrlsFromString(repoInput)
-        const githubRegex = /^(https?:\/\/)?(www\.)?(github\.com)\/.+$/
-        const githubUrl = detectedLinks.find(url => githubRegex.test(url))
-        
-        const urlParts = githubUrl.split("/")
-        const username = urlParts[3]
-        const repository = urlParts[4]
-        
-        bot.react("⏳")
-        
-        const zipUrl = `https://api.github.com/repos/${username}/${repository}/zipball`
-        
-        await bot.sock.sendMessage(message.chat, {
-            document: { url: zipUrl },
-            fileName: `${repository}.zip`,
-            mimetype: "application/zip",
-            quoted: message
-        })
-        
-        bot.react("✅")
-    } catch (e) {
-        console.error("GitHub clone error", e)
-        bot.reply("*Error occurred!*\nRepository might be private or invalid")
+      await bot.react("📥");
+
+      const input = message.query;
+      if (!input) return await bot.reply(`Please provide a GitHub URL.\nUsage: *${config.PREFIX}gitclone https://github.com/user/repo*`);
+
+      const match = input.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+      if (!match) return await bot.reply("Invalid GitHub URL.");
+
+      const user = match[1];
+      const repo = match[2].replace(/\.git$/, "");
+
+      const res = await axios.get(`https://api.github.com/repos/${user}/${repo}`, {
+        headers: { "User-Agent": "QUEEN-ALYA" }
+      });
+
+      const branch = res.data.default_branch || "main";
+      const zipUrl = `https://github.com/${user}/${repo}/archive/refs/heads/${branch}.zip`;
+
+      await bot.sock.sendMessage(message.chat, {
+        document: { url: zipUrl },
+        fileName: `${repo}-${branch}.zip`,
+        mimetype: "application/zip",
+        caption: `🔗 GitHub Repo: https://github.com/${user}/${repo}`,
+        quoted: message
+      });
+
+    } catch (err) {
+      await bot.reply("err");
     }
-})
+  }
+);
