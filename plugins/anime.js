@@ -1,6 +1,7 @@
 const bot = require("../lib/plugin");
 const axios = require("axios")
 const config = require("../config");
+const fetch = require('node-fetch');
 
 bot(
     {
@@ -139,3 +140,82 @@ bot(
     }
   }
 );
+const animeCharacters = [
+  'akira', 'akiyama', 'anna', 'asuna', 'ayuzawa', 'boruto', 'chitanda', 'chitoge', 
+  'deidara', 'doraemon', 'elaina', 'emilia', 'asuna', 'erza', 'gremory', 'hestia', 
+  'hinata', 'inori', 'itachi', 'isuzu', 'itori', 'kaga', 'kagura', 'kakasih', 'kaori', 
+  'kaneki', 'kosaki', 'kotori', 'kuriyama', 'kuroha', 'kurumi', 'madara', 'mikasa', 
+  'miku', 'minato', 'naruto', 'natsukawa', 'neko2', 'nekohime', 'nezuko', 'nishimiya', 
+  'onepiece', 'pokemon', 'rem', 'rize', 'sagiri', 'sakura', 'sasuke', 'shina', 'shinka', 
+  'shizuka', 'shota', 'tomori', 'toukachan', 'tsunade', 'yatogami', 'yuki'
+];
+
+// Create a command for each anime character
+animeCharacters.forEach(cmdname => {
+  bot(
+    {
+      name: cmdname,
+      info: `Generate random ${cmdname} images`,
+      category: "Anime",
+      usage: "",
+    },
+    async (message, bot) => {
+      try {
+        await bot.react('🌸');
+        
+        // Fetch anime image from your database
+        let apiUrl = `https://raw.githubusercontent.com/KazukoGans/database/main/anime/${cmdname}.json`;
+        let response = await fetch(apiUrl);
+        let jsonResponse = await response.json();
+
+        if (jsonResponse && jsonResponse.length > 0) {
+          let randomIndex = Math.floor(Math.random() * jsonResponse.length);
+          let randomImageUrl = jsonResponse[randomIndex];
+          
+          await bot.sock.sendMessage(
+            message.chat,
+            {
+              image: { url: randomImageUrl },
+              caption: `Random ${cmdname.charAt(0).toUpperCase() + cmdname.slice(1)} Image`,
+              title: `${cmdname.charAt(0).toUpperCase() + cmdname.slice(1)} Generator`,
+              footer: "> © QUEEN ALYA",
+              media: true,
+              interactiveButtons: [
+                {
+                  name: "quick_reply",
+                  buttonParamsJson: JSON.stringify({
+                    display_text: "Generate Again",
+                    id: `${config.PREFIX}${cmdname}`
+                  })
+                }
+              ]
+            },
+            { 
+              quoted: {
+                key: {
+                  fromMe: false,
+                  participant: "867051314767696@bot",
+                  remoteJid: "@bot"
+                },
+                message: {
+                  newsletterAdminInviteMessage: {
+                    newsletterJid: "120363401730094494@newsletter",
+                    newsletterName: "KING XER",
+                    caption: "MADE WITH 🖤",
+                    inviteExpiration: 1752555592,
+                    jpegThumbnail: null
+                  }
+                }
+              }
+            }  
+          );
+        } else {
+          throw new Error("No images found for this character");
+        }
+        
+      } catch (error) {
+        await handleError(error, bot, message, cmdname);
+      }
+    }
+  );
+});
