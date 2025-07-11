@@ -67,16 +67,20 @@ bot(
         ]
     },
     async (message, bot) => {
-        const action = message.query;
-        const config = require(afkState.configFile);
-
+        const query = message.query?.trim() || '';
+        
         // Check if message is from owner
-        const isOwner = message.sender === config.OWNER_NUMBER + '@s.whatsapp.net';
-        if (!isOwner) return await bot.reply("This command is only available for the owner.");
+        if (!message.isOwner(message.sender)) {
+            return await bot.reply("This command is only available to the bot owner.");
+        }
+        const sender = message.sender;
+
+        const [action, ...rest] = query.split(' ');
+        const reasonText = rest.join(' ');
 
         switch (action) {
             case 'on':
-                const reason = message.args.slice(1).join(' ') || "I'm AFK right now";
+                const reason = reasonText || "I'm AFK right now";
                 const onSuccess = updateConfig({ 
                     AFK: "true",
                     AFK_REASON: reason
@@ -84,7 +88,7 @@ bot(
                 
                 if (onSuccess) {
                     const now = Date.now();
-                    afkState.afkStartTimes.set(message.sender, now);
+                    afkState.afkStartTimes.set(sender, now);
                     afkState.globalAFKStartTime = now;
                     return await bot.reply(`AFK mode has been enabled.\nReason: ${reason}`);
                 } else {
@@ -98,10 +102,10 @@ bot(
                 });
                 
                 if (offSuccess) {
-                    const startTime = afkState.afkStartTimes.get(message.sender);
+                    const startTime = afkState.afkStartTimes.get(sender);
                     if (startTime) {
                         const duration = formatDuration(startTime);
-                        afkState.afkStartTimes.delete(message.sender);
+                        afkState.afkStartTimes.delete(sender);
                         return await bot.reply(`AFK mode has been disabled.\nYou were AFK for ${duration}.`);
                     }
                     return await bot.reply("AFK mode has been disabled.");
@@ -110,20 +114,21 @@ bot(
                 }
                 
             case 'reason':
-                if (message.args.length < 2) {
+                if (!reasonText) {
+                    const config = require(afkState.configFile);
                     return await bot.reply(`Current AFK reason: ${config.AFK_REASON || "Not set"}`);
                 }
                 
-                const newReason = message.args.slice(1).join(' ');
-                const reasonSuccess = updateConfig({ AFK_REASON: newReason });
+                const reasonSuccess = updateConfig({ AFK_REASON: reasonText });
                 
                 if (reasonSuccess) {
-                    return await bot.reply(`AFK reason updated to: ${newReason}`);
+                    return await bot.reply(`AFK reason updated to: ${reasonText}`);
                 } else {
                     return await bot.reply("Failed to update AFK reason.");
                 }
                 
             default:
+                const config = require(afkState.configFile);
                 return await bot.reply(`AFK Status: ${config.AFK === "true" ? 'ON' : 'OFF'}\n` +
                     (config.AFK === "true" ? `Reason: ${config.AFK_REASON || "Not specified"}\n` : '') +
                     `\nUsage:\n` +
@@ -149,12 +154,14 @@ bot(
             // Skip if AFK is disabled or message is from the bot itself
             if (config.AFK !== "true" || message.key?.fromMe) return;
             
-            // Check if message is from owner
-            const isOwner = message.sender === config.OWNER_NUMBER + '@s.whatsapp.net';
+            const sender = message.sender;
+            
+            // Skip if sender is owner (with proper verification)
+            if (message.isOwner && message.isOwner(sender)) return;
             
             // If owner sends any message and was AFK, welcome them back
-            if (isOwner && afkState.afkStartTimes.has(message.sender)) {
-                const startTime = afkState.afkStartTimes.get(message.sender);
+            if (message.isOwner(sender) && afkState.afkStartTimes.has(sender)) {
+                const startTime = afkState.afkStartTimes.get(sender);
                 const duration = formatDuration(startTime);
                 const reason = config.AFK_REASON || "No reason specified";
                 
@@ -163,7 +170,7 @@ bot(
                     AFK: "false",
                     AFK_REASON: ""
                 });
-                afkState.afkStartTimes.delete(message.sender);
+                afkState.afkStartTimes.delete(sender);
                 
                 // Send welcome back message
                 await bot.reply(`*Welcome back!*\nYou were AFK for ${duration}.\nReason: ${reason}`);
