@@ -58,10 +58,14 @@ pluginSystem(
             }
             
             // Register the plugin using the plugin system directly
-            const added = pluginSystem(pluginModule.exports.options, pluginModule.exports.handler);  // Changed from pluginSystem.bot() to pluginSystem()
+            const added = pluginSystem(pluginModule.exports.options, pluginModule.exports.handler);
             
             if (added) {
-                installedPlugins.set(pluginName, code);
+                installedPlugins.set(pluginName, {
+                    code: code,
+                    options: pluginModule.exports.options,
+                    handler: pluginModule.exports.handler
+                });
                 await bot.react("✅");
                 await bot.reply(`Temporary plugin "${pluginName}" installed!`);
             } else {
@@ -98,11 +102,47 @@ pluginSystem(
             return await bot.reply(`"${pluginName}" is not a temporary plugin or doesn't exist.`);
         }
         
-        // Note: We can't actually unload the plugin from memory due to Node.js limitations
-        // But we can remove it from our tracking
-        installedPlugins.delete(pluginName);
-        await bot.react("✅");
-        await bot.reply(`Temporary plugin "${pluginName}" removed`);
+        // Get the plugin info before removing it
+        const pluginInfo = installedPlugins.get(pluginName);
+        
+        try {
+            // Remove the plugin from the plugin system
+            if (pluginSystem.removePlugin) {
+                // If the plugin system has a removePlugin method, use it
+                const removed = pluginSystem.removePlugin(pluginInfo.options, pluginInfo.handler);
+                if (!removed) {
+                    await bot.react("❌");
+                    return await bot.reply(`Failed to remove plugin "${pluginName}" from the plugin system.`);
+                }
+            } else {
+                // Fallback: Try to find and remove the plugin manually
+                const allPlugins = pluginSystem.getPlugins();
+                const pluginIndex = [...allPlugins.commands, ...allPlugins.events].findIndex(
+                    p => p.name === pluginName || 
+                        (p.options && p.options.name === pluginName)
+                );
+                
+                if (pluginIndex !== -1) {
+                    if (allPlugins.commands[pluginIndex]) {
+                        allPlugins.commands.splice(pluginIndex, 1);
+                    } else {
+                        const eventIndex = pluginIndex - allPlugins.commands.length;
+                        allPlugins.events.splice(eventIndex, 1);
+                    }
+                } else {
+                    await bot.react("❌");
+                    return await bot.reply(`Plugin "${pluginName}" not found in the plugin system.`);
+                }
+            }
+            
+            // Remove from our tracking
+            installedPlugins.delete(pluginName);
+            await bot.react("✅");
+            await bot.reply(`Temporary plugin "${pluginName}" successfully uninstalled.`);
+        } catch (error) {
+            await bot.react("❌");
+            await bot.reply(`⚠️ Plugin Uninstallation Error: ${error.message}`);
+        }
     }
 );
 
