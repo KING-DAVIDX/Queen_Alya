@@ -74,8 +74,7 @@ bot(
             await bot.sendAudio(
                 message.chat,
                 audioBuffer,
-                {},
-                "Here's your audio"
+"Here's your audio"
             );
             
         } catch (error) {
@@ -210,8 +209,7 @@ bot(
                 await bot.sendVideo(
                     message.chat,
                     videoBuffer,
-                    {},
-                    "Here's your video converted from audio"
+ "Here's your video converted from audio"
                 );
                 
             } else if (message.quoted.sticker) {
@@ -229,8 +227,7 @@ bot(
                 await bot.sendVideo(
                     message.chat,
                     videoBuffer,
-                    {},
-                    "Here's your video converted from sticker"
+ "Here's your video converted from sticker"
                 );
                 
             } else {
