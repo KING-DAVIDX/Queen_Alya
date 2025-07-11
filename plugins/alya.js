@@ -115,7 +115,7 @@ bot(
             let fullText = (message.content || message.text || '').trim().toLowerCase();
             
             // Check if owner says "alya"
-            if (isOwner(message.sender) && fullText === 'alya') {
+            if (message.isOwner(message.sender) && fullText === 'alya') {
                 return await message.send(`Yes ${message.pushName || 'Master'}, how can I help you?`, { 
                     fromMe: true, 
                     skipAlya: true 
