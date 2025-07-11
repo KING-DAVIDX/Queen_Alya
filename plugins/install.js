@@ -1,4 +1,4 @@
-const pluginSystem = require("../lib/plugin");  // Renamed import to avoid confusion
+const pluginSystem = require("../lib/plugin");  // This is actually the exportedBot function
 const fs = require('fs');
 const path = require('path');
 const util = require('util');
@@ -58,7 +58,7 @@ pluginSystem(
             }
             
             // Register the plugin using the plugin system directly
-            const added = pluginSystem.bot(pluginModule.exports.options, pluginModule.exports.handler);
+            const added = pluginSystem(pluginModule.exports.options, pluginModule.exports.handler);  // Changed from pluginSystem.bot() to pluginSystem()
             
             if (added) {
                 installedPlugins.set(pluginName, code);
@@ -75,7 +75,6 @@ pluginSystem(
     }
 );
 
-// Plugin uninstallation handler (=< prefix)
 pluginSystem(
     {
         on: 'text',
