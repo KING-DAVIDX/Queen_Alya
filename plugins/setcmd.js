@@ -39,18 +39,32 @@ function bufferToHex(buffer) {
     return Buffer.from(buffer).toString('hex');
 }
 
+// Helper function to extract consistent sticker data from different message formats
+function extractStickerData(stickerMessage) {
+    if (!stickerMessage) return null;
+    
+    // Handle both raw and serialized message formats
+    return {
+        fileSha256: bufferToHex(stickerMessage.fileSha256),
+        mediaKey: bufferToHex(stickerMessage.mediaKey),
+        url: stickerMessage.url,
+        directPath: stickerMessage.directPath,
+        isAnimated: stickerMessage.isAnimated || false
+    };
+}
+
 // Helper function to generate consistent sticker ID
 function generateStickerId(stickerMessage) {
-    if (!stickerMessage) return null;
+    const stickerData = extractStickerData(stickerMessage);
+    if (!stickerData) return null;
     
     const hash = crypto.createHash('sha256');
     
-    // Include all identifying properties in the hash
-    if (stickerMessage.fileSha256) hash.update(bufferToHex(stickerMessage.fileSha256));
-    if (stickerMessage.mediaKey) hash.update(bufferToHex(stickerMessage.mediaKey));
-    if (stickerMessage.url) hash.update(stickerMessage.url);
-    if (stickerMessage.directPath) hash.update(stickerMessage.directPath);
-    if (stickerMessage.stickerSentTs) hash.update(stickerMessage.stickerSentTs.toString());
+    // Include all identifying properties in the hash in consistent order
+    if (stickerData.fileSha256) hash.update(stickerData.fileSha256);
+    if (stickerData.mediaKey) hash.update(stickerData.mediaKey);
+    if (stickerData.url) hash.update(stickerData.url);
+    if (stickerData.directPath) hash.update(stickerData.directPath);
     
     return hash.digest('hex');
 }
@@ -81,8 +95,8 @@ bot(
         }
 
         try {
-            // Get the raw sticker message
-            const stickerMsg = message.quoted.fakeObj?.message?.stickerMessage;
+            // Get the sticker message from either quoted message or fakeObj
+            const stickerMsg = message.quoted.sticker || message.quoted.fakeObj?.message?.stickerMessage;
             if (!stickerMsg) {
                 return await bot.reply("❌ Could not retrieve sticker metadata.");
             }
@@ -97,20 +111,17 @@ bot(
                 cmd.name !== commandName && cmd.stickerId !== stickerId
             );
             
-            const stickerData = {
+            const stickerData = extractStickerData(stickerMsg);
+            const commandData = {
                 name: commandName,
                 stickerId: stickerId,
-                fileSha256: bufferToHex(stickerMsg.fileSha256),
-                mediaKey: bufferToHex(stickerMsg.mediaKey),
-                url: stickerMsg.url,
-                directPath: stickerMsg.directPath,
-                isAnimated: stickerMsg.isAnimated || false,
+                ...stickerData,
                 createdAt: new Date().toISOString(),
                 createdBy: message.sender
             };
 
             // Add the new command
-            stickerCommands.push(stickerData);
+            stickerCommands.push(commandData);
             saveStickerCommands();
 
             await bot.reply(`✅ Sticker command "${commandName}" has been set!\nSticker ID: ${stickerId}`);
@@ -194,13 +205,16 @@ bot(
     },
     async (message, bot) => {
         try {
-            // First serialize the message to ensure proper structure
-            const serializedMsg = await serializeMessage(message.fakeObj, bot.sock);
-            if (!serializedMsg || !serializedMsg.sticker) {
-                return; // Skip if not a sticker after serialization
+            // Get sticker message from either direct message or serialized message
+            let stickerMsg = message.sticker;
+            if (!stickerMsg) {
+                const serializedMsg = await serializeMessage(message.fakeObj, bot.sock);
+                stickerMsg = serializedMsg?.sticker;
             }
 
-            const stickerMsg = serializedMsg.sticker;
+            if (!stickerMsg) {
+                return; // Not a sticker message
+            }
             
             // Generate unique ID for the sticker
             const stickerId = generateStickerId(stickerMsg);
