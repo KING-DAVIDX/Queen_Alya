@@ -2,6 +2,7 @@ const bot = require("../lib/plugin");
 const fs = require('fs');
 const path = require('path');
 const config = require("../config");
+const crypto = require('crypto');
 
 // Database for storing sticker commands
 let stickerCommands = [];
@@ -32,7 +33,7 @@ loadStickerCommands();
 
 // Helper function to convert Uint8Array to hex string
 function uint8ToHex(uint8) {
-    return Array.from(uint8).map(b => b.toString(16).padStart(2, '0')).join('');
+    return Buffer.from(uint8).toString('hex');
 }
 
 // 1. Setcmd - Assign a command to a sticker
@@ -63,8 +64,10 @@ bot(
         try {
             const fileSha256 = uint8ToHex(message.quoted.fileSha256);
             
-            // Remove any existing command with this name
-            stickerCommands = stickerCommands.filter(cmd => cmd.name !== commandName);
+            // Remove any existing command with this name or same sticker
+            stickerCommands = stickerCommands.filter(cmd => 
+                cmd.name !== commandName && cmd.fileSha256 !== fileSha256
+            );
             
             const stickerData = {
                 name: commandName,
@@ -156,24 +159,38 @@ bot(
     },
     async (message, bot) => {
         try {
-            if (message.isBot) return;
-
+            // Skip if message is from bot itself
+            if (message.isBot || !message.sticker) return;
+            
+            // Get the sticker's fileSha256
             const fileSha256 = uint8ToHex(message.fileSha256);
+            
+            // Debug logging
+            bot.reply('Received sticker with SHA256:', fileSha256);
+            bot.reply('Registered sticker commands:', stickerCommands.map(c => c.fileSha256));
             
             // Find matching command
             const matchedCommand = stickerCommands.find(cmd => cmd.fileSha256 === fileSha256);
             
             if (matchedCommand) {
-                // Trigger the command
+                bot.reply('Matched sticker command:', matchedCommand.name);
+                
+                // Create a fake message to trigger the command
                 const commandMessage = {
                     ...message,
                     text: `${config.PREFIX}${matchedCommand.name}`,
                     content: `${config.PREFIX}${matchedCommand.name}`,
                     command: matchedCommand.name,
                     args: [],
-                    prefix: config.PREFIX
+                    prefix: config.PREFIX,
+                    shouldProcess: true,
+                    shouldProcessCommand: true
                 };
+                
+                // Use the plugin system's handleMessage method to process the command
                 await bot.plugins.system.handleMessage(commandMessage, bot);
+            } else {
+                bot.reply('No matching sticker command found');
             }
         } catch (error) {
             console.error('Error in sticker command listener:', error);
