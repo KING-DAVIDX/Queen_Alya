@@ -51,9 +51,27 @@ function formatDuration(startTime) {
     return duration.join(' ');
 }
 
-// Helper function to extract base number from JID
-function extractBaseNumber(jid) {
-    return jid.split('@')[0];
+// Helper function to check if owner is mentioned
+async function isOwnerMentioned(message) {
+    try {
+        if (!message.text) return false;
+        
+        // Extract all mentions from message
+        const mentions = message.mentionedJid || [];
+        if (mentions.length === 0) return false;
+        
+        // Check each mentioned JID
+        for (const mention of mentions) {
+            if (await message.isOwner(mention)) {
+                return true;
+            }
+        }
+        
+        return false;
+    } catch (error) {
+        console.error('Error checking owner mention:', error);
+        return false;
+    }
 }
 
 bot(
@@ -70,7 +88,8 @@ bot(
         const query = message.query?.trim() || '';
         
         // Check if message is from owner
-        if (!message.isOwner(message.sender)) {
+        const isOwner = await message.isOwner(message.sender);
+        if (!isOwner) {
             return await bot.reply("This command is only available to the bot owner.");
         }
         const sender = message.sender;
@@ -156,36 +175,36 @@ bot(
             
             const sender = message.sender;
             
-            // Skip if sender is owner (with proper verification)
-            if (message.isOwner && message.isOwner(sender)) return;
-            
-            // If owner sends any message and was AFK, welcome them back
-            if (message.isOwner(sender) && afkState.afkStartTimes.has(sender)) {
-                const startTime = afkState.afkStartTimes.get(sender);
-                const duration = formatDuration(startTime);
-                const reason = config.AFK_REASON || "No reason specified";
-                
-                // Disable AFK
-                updateConfig({ 
-                    AFK: "false",
-                    AFK_REASON: ""
-                });
-                afkState.afkStartTimes.delete(sender);
-                
-                // Send welcome back message
-                await bot.reply(`*Welcome back!*\nYou were AFK for ${duration}.\nReason: ${reason}`);
+            // Check if sender is owner (with proper verification)
+            const isOwner = await message.isOwner(sender);
+            if (isOwner) {
+                // If owner sends any message and was AFK, welcome them back
+                if (afkState.afkStartTimes.has(sender)) {
+                    const startTime = afkState.afkStartTimes.get(sender);
+                    const duration = formatDuration(startTime);
+                    const reason = config.AFK_REASON || "No reason specified";
+                    
+                    // Disable AFK
+                    updateConfig({ 
+                        AFK: "false",
+                        AFK_REASON: ""
+                    });
+                    afkState.afkStartTimes.delete(sender);
+                    
+                    // Send welcome back message
+                    await bot.reply(`*Welcome back!*\nYou were AFK for ${duration}.\nReason: ${reason}`);
+                }
                 return;
             }
             
-            // Check if owner is mentioned (only if owner hasn't sent any messages themselves)
-            const ownerBaseNumber = extractBaseNumber(config.OWNER_NUMBER + '@s.whatsapp.net');
-            const isMentioned = message.text?.includes(`@${ownerBaseNumber}`);
+            // Check if owner is mentioned in the message
+            const ownerMentioned = await isOwnerMentioned(message);
             const isGroup = message.chat?.endsWith('@g.us') ?? false;
             
             // Respond only if:
             // 1. Owner is mentioned in a group, OR
             // 2. It's a PM (non-group chat)
-            if ((isGroup && isMentioned) || !isGroup) {
+            if ((isGroup && ownerMentioned) || !isGroup) {
                 const startTime = afkState.globalAFKStartTime || Date.now();
                 const duration = formatDuration(startTime);
                 const reason = config.AFK_REASON || "I'm AFK right now";
