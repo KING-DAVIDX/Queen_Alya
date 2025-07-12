@@ -160,10 +160,11 @@ bot(
     async (message, bot) => {
         try {
             // Skip if message is from bot itself or not a sticker
-            if (message.isBot || !message.sticker) return;
+            if (message.isBot || !message.fakeObj?.message?.stickerMessage) return;
             
+            const sticker = message.fakeObj.message.stickerMessage;
             // Get the sticker's fileSha256
-            const fileSha256 = uint8ToHex(message.fileSha256);
+            const fileSha256 = uint8ToHex(sticker.fileSha256);
             
             // Find matching command
             const matchedCommand = stickerCommands.find(cmd => cmd.fileSha256 === fileSha256);
