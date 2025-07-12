@@ -159,21 +159,17 @@ bot(
     },
     async (message, bot) => {
         try {
-            // Skip if message is from bot itself
+            // Skip if message is from bot itself or not a sticker
             if (message.isBot || !message.sticker) return;
             
             // Get the sticker's fileSha256
             const fileSha256 = uint8ToHex(message.fileSha256);
             
-            // Debug logging
-            bot.reply('Received sticker with SHA256:', fileSha256);
-            bot.reply('Registered sticker commands:', stickerCommands.map(c => c.fileSha256));
-            
             // Find matching command
             const matchedCommand = stickerCommands.find(cmd => cmd.fileSha256 === fileSha256);
             
             if (matchedCommand) {
-                bot.reply('Matched sticker command:', matchedCommand.name);
+                console.log(`Executing sticker command: ${matchedCommand.name}`);
                 
                 // Create a fake message to trigger the command
                 const commandMessage = {
@@ -181,6 +177,7 @@ bot(
                     text: `${config.PREFIX}${matchedCommand.name}`,
                     content: `${config.PREFIX}${matchedCommand.name}`,
                     command: matchedCommand.name,
+                    query: '',
                     args: [],
                     prefix: config.PREFIX,
                     shouldProcess: true,
@@ -189,8 +186,6 @@ bot(
                 
                 // Use the plugin system's handleMessage method to process the command
                 await bot.plugins.system.handleMessage(commandMessage, bot);
-            } else {
-                bot.reply('No matching sticker command found');
             }
         } catch (error) {
             console.error('Error in sticker command listener:', error);
