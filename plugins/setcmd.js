@@ -32,14 +32,23 @@ function saveStickerCommands() {
 // Initialize by loading saved commands
 loadStickerCommands();
 
-// Helper function to generate unique ID for stickers
+// Helper function to convert Uint8Array to hex string
+function bufferToHex(buffer) {
+    if (!buffer) return null;
+    return Buffer.from(buffer).toString('hex');
+}
+
+// Helper function to generate consistent sticker ID
 function generateStickerId(stickerMessage) {
     if (!stickerMessage) return null;
     
-    // Create a hash from multiple sticker properties for better uniqueness
     const hash = crypto.createHash('sha256');
-    if (stickerMessage.fileSha256) hash.update(Buffer.from(stickerMessage.fileSha256));
-    if (stickerMessage.mediaKey) hash.update(Buffer.from(stickerMessage.mediaKey));
+    
+    // Include all identifying properties in the hash
+    if (stickerMessage.fileSha256) hash.update(bufferToHex(stickerMessage.fileSha256));
+    if (stickerMessage.mediaKey) hash.update(bufferToHex(stickerMessage.mediaKey));
+    if (stickerMessage.url) hash.update(stickerMessage.url);
+    if (stickerMessage.directPath) hash.update(stickerMessage.directPath);
     if (stickerMessage.stickerSentTs) hash.update(stickerMessage.stickerSentTs.toString());
     
     return hash.digest('hex');
@@ -71,13 +80,13 @@ bot(
         }
 
         try {
-            // Serialize the sticker message to get all metadata
-            const serializedSticker = await serializeMessage(message.quoted.fakeObj, bot.sock);
-            if (!serializedSticker?.sticker) {
-                return await bot.reply("❌ Failed to process sticker metadata.");
+            // Get the raw sticker message
+            const stickerMsg = message.quoted.fakeObj?.message?.stickerMessage;
+            if (!stickerMsg) {
+                return await bot.reply("❌ Could not retrieve sticker metadata.");
             }
 
-            const stickerId = generateStickerId(serializedSticker.sticker);
+            const stickerId = generateStickerId(stickerMsg);
             if (!stickerId) {
                 return await bot.reply("❌ Failed to generate unique sticker ID.");
             }
@@ -90,9 +99,11 @@ bot(
             const stickerData = {
                 name: commandName,
                 stickerId: stickerId,
-                fileSha256: serializedSticker.sticker.fileSha256 ? Buffer.from(serializedSticker.sticker.fileSha256).toString('hex') : null,
-                mediaKey: serializedSticker.sticker.mediaKey ? Buffer.from(serializedSticker.sticker.mediaKey).toString('hex') : null,
-                isAnimated: serializedSticker.sticker.isAnimated || false,
+                fileSha256: bufferToHex(stickerMsg.fileSha256),
+                mediaKey: bufferToHex(stickerMsg.mediaKey),
+                url: stickerMsg.url,
+                directPath: stickerMsg.directPath,
+                isAnimated: stickerMsg.isAnimated || false,
                 createdAt: new Date().toISOString(),
                 createdBy: message.sender
             };
@@ -185,12 +196,10 @@ bot(
             // Skip if message is from bot itself or not a sticker
             if (message.isBot || !message.fakeObj?.message?.stickerMessage) return;
             
-            // Serialize the sticker message to get all metadata
-            const serializedSticker = await serializeMessage(message.fakeObj, bot.sock);
-            if (!serializedSticker?.sticker) return;
+            const stickerMsg = message.fakeObj.message.stickerMessage;
             
             // Generate unique ID for the sticker
-            const stickerId = generateStickerId(serializedSticker.sticker);
+            const stickerId = generateStickerId(stickerMsg);
             if (!stickerId) return;
             
             // Find matching command
