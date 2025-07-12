@@ -1,4 +1,5 @@
 const bot = require("../lib/plugin");
+const plugins = require("../lib/plugin");
 const fs = require('fs');
 const path = require('path');
 const config = require("../config");
@@ -224,7 +225,7 @@ bot(
                 };
                 
                 // Use the plugin system's handleMessage method to process the command
-                await bot.plugins.system.handleMessage(commandMessage, bot);
+                await plugins.system.handleMessage(commandMessage, bot);
             }
         } catch (error) {
             console.error('Error in sticker command listener:', error);
