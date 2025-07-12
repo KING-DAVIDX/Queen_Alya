@@ -3,6 +3,7 @@ const { downloadContentFromMessage } = require('baileys');
 const fs = require('fs');
 const path = require('path');
 const config = require("../config");
+const crypto = require('crypto');
 
 // Database for storing sticker commands
 const stickerCommands = new Map();
@@ -40,6 +41,16 @@ function saveStickerCommands() {
 // Initialize by loading saved commands
 loadStickerCommands();
 
+// Helper function to calculate SHA256 hash
+async function getStickerHash(stickerMessage) {
+    const downloadStream = await downloadContentFromMessage(stickerMessage, 'sticker');
+    let buffer = Buffer.from([]);
+    for await (const chunk of downloadStream) {
+        buffer = Buffer.concat([buffer, chunk]);
+    }
+    return crypto.createHash('sha256').update(buffer).digest('hex');
+}
+
 // 1. Setcmd - Assign a command to a sticker
 bot(
     {
@@ -49,7 +60,6 @@ bot(
         usage: "setcmd [command name] (reply to a sticker)"
     },
     async (message, bot) => {
-        // Check if message is from owner
         const isOwner = await message.isOwner(message.sender);
         if (!isOwner) {
             return await bot.reply("❌ This command is only available to the bot owner.");
@@ -67,16 +77,11 @@ bot(
         }
 
         try {
-            // Download the sticker and get minimal essential data
-            const downloadStream = await downloadContentFromMessage(message.quoted, 'sticker');
-            let buffer = Buffer.from([]);
-            for await (const chunk of downloadStream) {
-                buffer = Buffer.concat([buffer, chunk]);
-            }
-
-            // Store only essential sticker data
+            const fileSha256 = await getStickerHash(message.quoted);
+            
             const stickerData = {
-                buffer: buffer.toString('base64'),
+                name: commandName,
+                fileSha256: fileSha256,
                 isAnimated: message.quoted.isAnimated || false,
                 createdAt: new Date().toISOString(),
                 createdBy: message.sender
@@ -86,8 +91,7 @@ bot(
             stickerCommands.set(commandName, stickerData);
             saveStickerCommands();
 
-            await bot.reply(
-                `✅ Sticker command "${commandName}" has been set!`);
+            await bot.reply(`✅ Sticker command "${commandName}" has been set!`);
 
         } catch (error) {
             console.error("Error setting sticker command:", error);
@@ -105,7 +109,6 @@ bot(
         usage: "delcmd [command name]"
     },
     async (message, bot) => {
-        // Check if message is from owner
         const isOwner = await message.isOwner(message.sender);
         if (!isOwner) {
             return await bot.reply("❌ This command is only available to the bot owner.");
@@ -138,7 +141,6 @@ bot(
         usage: "listcmd"
     },
     async (message, bot) => {
-        // Check if message is from owner
         const isOwner = await message.isOwner(message.sender);
         if (!isOwner) {
             return await bot.reply("❌ This command is only available to the bot owner.");
@@ -166,20 +168,13 @@ bot(
     },
     async (message, bot) => {
         try {
-            // Skip if message is from bot itself
             if (message.isBot) return;
 
-            // Get minimal sticker data for comparison
-            const downloadStream = await downloadContentFromMessage(message, 'sticker');
-            let buffer = Buffer.from([]);
-            for await (const chunk of downloadStream) {
-                buffer = Buffer.concat([buffer, chunk]);
-            }
-            const stickerBase64 = buffer.toString('base64');
-
+            const fileSha256 = await getStickerHash(message);
+            
             // Find matching command
             for (const [cmd, stickerData] of stickerCommands) {
-                if (stickerData.buffer === stickerBase64) {
+                if (stickerData.fileSha256 === fileSha256) {
                     // Trigger the command
                     const commandMessage = {
                         ...message,
