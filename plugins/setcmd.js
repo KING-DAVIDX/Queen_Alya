@@ -186,7 +186,6 @@ bot(
 );
 
 // 4. Sticker Command Listener - Handle sticker commands
-// 4. Sticker Command Listener - Handle sticker commands
 bot(
     {
         on: 'sticker',
@@ -195,58 +194,27 @@ bot(
     },
     async (message, bot) => {
         try {
-            // Debug: Log incoming message
-            await bot.reply("🔹 Received sticker message");
-            
-            // Skip if message is from bot itself or not a sticker
-            if (message.isBot) {
-                await bot.reply("🔹 Skipping: Message is from bot");
-                return;
+            // First serialize the message to ensure proper structure
+            const serializedMsg = await serializeMessage(message.fakeObj, bot.sock);
+            if (!serializedMsg || !serializedMsg.sticker) {
+                return; // Skip if not a sticker after serialization
             }
-            
-            if (!message.fakeObj?.message?.stickerMessage) {
-                await bot.reply("🔹 Skipping: Not a sticker message");
-                return;
-            }
-            
-            const stickerMsg = message.fakeObj.message.stickerMessage;
-            
-            // Debug: Show sticker properties
-            await bot.reply(
-                `🔹 Sticker Properties:\n` +
-                `- fileSha256: ${bufferToHex(stickerMsg.fileSha256) || 'null'}\n` +
-                `- mediaKey: ${bufferToHex(stickerMsg.mediaKey) || 'null'}\n` +
-                `- url: ${stickerMsg.url || 'null'}\n` +
-                `- directPath: ${stickerMsg.directPath || 'null'}\n` +
-                `- isAnimated: ${stickerMsg.isAnimated || false}\n` +
-                `- stickerSentTs: ${stickerMsg.stickerSentTs || 'null'}`,
-                { fromMe: true, skipAlya: true }
-            );
+
+            const stickerMsg = serializedMsg.sticker;
             
             // Generate unique ID for the sticker
             const stickerId = generateStickerId(stickerMsg);
             if (!stickerId) {
-                await bot.reply("❌ Failed to generate sticker ID");
+                console.error('Failed to generate sticker ID');
                 return;
             }
-            
-            await bot.reply(`🔹 Generated Sticker ID: ${stickerId}`);
             
             // Find matching command
             const matchedCommand = stickerCommands.find(cmd => cmd.stickerId === stickerId);
             
             if (!matchedCommand) {
-                await bot.reply("🔹 No command found for this sticker ID");
-                return;
+                return; // No command associated with this sticker
             }
-            
-            await bot.reply(
-                `🔹 Matched Command:\n` +
-                `- Name: ${matchedCommand.name}\n` +
-                `- Sticker ID: ${matchedCommand.stickerId}\n` +
-                `- Created By: ${matchedCommand.createdBy}`,
-                { fromMe: true, skipAlya: true }
-            );
             
             // Create command message
             const commandMessage = {
@@ -266,21 +234,10 @@ bot(
                 isBot: false
             };
             
-            await bot.reply(
-                `🔹 Created Command Message:\n` +
-                `- Text: ${commandMessage.text}\n` +
-                `- Command: ${commandMessage.command}\n` +
-                `- isCommand: ${commandMessage.isCommand}`,
-                { fromMe: true, skipAlya: true }
-            );
-            
             // Execute the command
-            await bot.reply(`🔹 Executing command: ${config.PREFIX}${matchedCommand.name}`);
             await plugins.system.handleMessage(commandMessage, bot);
             
         } catch (error) {
-            await bot.reply(
-                `❌ Sticker Command Error:\n${error.message}\n\nStack:\n${error.stack}`);
             console.error('Error in sticker command listener:', error);
         }
     }
