@@ -1,22 +1,16 @@
 const bot = require("../lib/plugin");
-const { downloadContentFromMessage } = require('baileys');
 const fs = require('fs');
 const path = require('path');
 const config = require("../config");
-const crypto = require('crypto');
 
 // Database for storing sticker commands
-const stickerCommands = new Map();
+let stickerCommands = [];
 
 // Load sticker commands from file
 function loadStickerCommands() {
     try {
         const data = fs.readFileSync(path.join(__dirname, '../lib/json/sticker_commands.json'), 'utf-8');
-        const commands = JSON.parse(data);
-        stickerCommands.clear();
-        for (const [cmd, stickerData] of Object.entries(commands)) {
-            stickerCommands.set(cmd, stickerData);
-        }
+        stickerCommands = JSON.parse(data);
     } catch (error) {
         if (error.code !== 'ENOENT') {
             console.error('Error loading sticker commands:', error);
@@ -26,14 +20,9 @@ function loadStickerCommands() {
 
 // Save sticker commands to file
 function saveStickerCommands() {
-    const commands = {};
-    stickerCommands.forEach((value, key) => {
-        commands[key] = value;
-    });
-    
     fs.writeFileSync(
         path.join(__dirname, '../lib/json/sticker_commands.json'),
-        JSON.stringify(commands, null, 2),
+        JSON.stringify(stickerCommands, null, 2),
         'utf-8'
     );
 }
@@ -41,14 +30,9 @@ function saveStickerCommands() {
 // Initialize by loading saved commands
 loadStickerCommands();
 
-// Helper function to calculate SHA256 hash
-async function getStickerHash(stickerMessage) {
-    const downloadStream = await downloadContentFromMessage(stickerMessage, 'sticker');
-    let buffer = Buffer.from([]);
-    for await (const chunk of downloadStream) {
-        buffer = Buffer.concat([buffer, chunk]);
-    }
-    return crypto.createHash('sha256').update(buffer).digest('hex');
+// Helper function to convert Uint8Array to hex string
+function uint8ToHex(uint8) {
+    return Array.from(uint8).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 // 1. Setcmd - Assign a command to a sticker
@@ -77,7 +61,10 @@ bot(
         }
 
         try {
-            const fileSha256 = await getStickerHash(message.quoted);
+            const fileSha256 = uint8ToHex(message.quoted.fileSha256);
+            
+            // Remove any existing command with this name
+            stickerCommands = stickerCommands.filter(cmd => cmd.name !== commandName);
             
             const stickerData = {
                 name: commandName,
@@ -87,8 +74,8 @@ bot(
                 createdBy: message.sender
             };
 
-            // Store the command
-            stickerCommands.set(commandName, stickerData);
+            // Add the new command
+            stickerCommands.push(stickerData);
             saveStickerCommands();
 
             await bot.reply(`✅ Sticker command "${commandName}" has been set!`);
@@ -121,13 +108,14 @@ bot(
             );
         }
 
-        if (!stickerCommands.has(commandName)) {
+        const initialLength = stickerCommands.length;
+        stickerCommands = stickerCommands.filter(cmd => cmd.name !== commandName);
+        
+        if (stickerCommands.length === initialLength) {
             return await bot.reply(`❌ Command "${commandName}" doesn't exist.`);
         }
 
-        stickerCommands.delete(commandName);
         saveStickerCommands();
-
         await bot.reply(`✅ Command "${commandName}" has been deleted.`);
     }
 );
@@ -146,13 +134,13 @@ bot(
             return await bot.reply("❌ This command is only available to the bot owner.");
         }
 
-        if (stickerCommands.size === 0) {
+        if (stickerCommands.length === 0) {
             return await bot.reply("ℹ️ No sticker commands have been set yet.");
         }
 
         let response = "📜 Sticker Commands List:\n\n";
-        stickerCommands.forEach((data, cmd) => {
-            response += `• ${config.PREFIX}${cmd} (${data.isAnimated ? 'Animated' : 'Static'})\n`;
+        stickerCommands.forEach((cmd, index) => {
+            response += `${index + 1}. ${config.PREFIX}${cmd.name} (${cmd.isAnimated ? 'Animated' : 'Static'})\n`;
         });
 
         await bot.reply(response);
@@ -170,23 +158,22 @@ bot(
         try {
             if (message.isBot) return;
 
-            const fileSha256 = await getStickerHash(message);
+            const fileSha256 = uint8ToHex(message.fileSha256);
             
             // Find matching command
-            for (const [cmd, stickerData] of stickerCommands) {
-                if (stickerData.fileSha256 === fileSha256) {
-                    // Trigger the command
-                    const commandMessage = {
-                        ...message,
-                        text: `${config.PREFIX}${cmd}`,
-                        content: `${config.PREFIX}${cmd}`,
-                        command: cmd,
-                        args: [],
-                        prefix: config.PREFIX
-                    };
-                    await bot.plugins.system.handleMessage(commandMessage, bot);
-                    break;
-                }
+            const matchedCommand = stickerCommands.find(cmd => cmd.fileSha256 === fileSha256);
+            
+            if (matchedCommand) {
+                // Trigger the command
+                const commandMessage = {
+                    ...message,
+                    text: `${config.PREFIX}${matchedCommand.name}`,
+                    content: `${config.PREFIX}${matchedCommand.name}`,
+                    command: matchedCommand.name,
+                    args: [],
+                    prefix: config.PREFIX
+                };
+                await bot.plugins.system.handleMessage(commandMessage, bot);
             }
         } catch (error) {
             console.error('Error in sticker command listener:', error);
