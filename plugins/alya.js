@@ -6,19 +6,6 @@ const ai = require("../lib/modules/ai");
 
 const alyaState = new Map();
 
-// Helper function to clean JID
-function cleanJid(jid) {
-    if (!jid) return jid;
-    return jid.replace(/[^0-9]/g, "").replace(/^0+/, "");
-}
-
-// Helper function to check if sender is owner
-function isOwner(senderJid) {
-    const cleanedSender = cleanJid(senderJid);
-    const ownerNumber = cleanJid(config.OWNER_NUMBER);
-    return cleanedSender === ownerNumber;
-}
-
 // Watch for config file changes
 const configPath = path.join(__dirname, '../config.js');
 let configWatcher;
@@ -72,27 +59,33 @@ bot(
         usage: "alya [on|off]"
     },
     async (message, bot) => {
-        const command = message.args[0]?.toLowerCase();
-        
-        if (command === 'on' || command === 'off') {
-            if (!isOwner(message.sender)) {
-                return await message.send("❌ Only the owner can control Alya.", { fromMe: true, skipAlya: true });
-            }
+        try {
+            const command = message.args[0]?.toLowerCase();
             
-            const success = updateConfig('CHAT_BOT', command === 'on' ? 'true' : 'false');
-            if (success) {
-                await message.send(`✅ Alya chatbot has been turned ${command}.`, { fromMe: true, skipAlya: true });
+            if (command === 'on' || command === 'off') {
+                const isOwner = await message.isOwner(message.sender);
+                if (!isOwner) {
+                    return await bot.reply("❌ Only the owner can control Alya.", { skipAlya: true });
+                }
+                
+                const success = updateConfig('CHAT_BOT', command === 'on' ? 'true' : 'false');
+                if (success) {
+                    await bot.reply(`✅ Alya chatbot has been turned ${command}.`, { skipAlya: true });
+                } else {
+                    await bot.reply("❌ Failed to update Alya status.", { skipAlya: true });
+                }
             } else {
-                await message.send("❌ Failed to update Alya status.", { fromMe: true, skipAlya: true });
+                await bot.reply(
+                    `Alya Control\n\n` +
+                    `Usage:\n` +
+                    `${config.PREFIX}alya on - Enable Alya chatbot\n` +
+                    `${config.PREFIX}alya off - Disable Alya chatbot`,
+                    { skipAlya: true }
+                );
             }
-        } else {
-            await message.send(
-                `Alya Control\n\n` +
-                `Usage:\n` +
-                `${config.PREFIX}alya on - Enable Alya chatbot\n` +
-                `${config.PREFIX}alya off - Disable Alya chatbot`,
-                { fromMe: true, skipAlya: true }
-            );
+        } catch (error) {
+            console.error('Error in alya command:', error);
+            await bot.reply("An error occurred while processing your request.", { skipAlya: true });
         }
     }
 );
@@ -110,14 +103,14 @@ bot(
             // - This message should be ignored by Alya
             // - Message is from the bot itself
             // - Chatbot is disabled in config
-            if (message.skipAlya || message.isBot || config.CHAT_BOT !== "true") return;
+            if (message.skipAlya || message.key?.fromMe || config.CHAT_BOT !== "true") return;
 
             let fullText = (message.content || message.text || '').trim().toLowerCase();
             
             // Check if owner says "alya"
-            if (message.isOwner(message.sender) && fullText === 'alya') {
-                return await message.send(`Yes ${message.pushName || 'Master'}, how can I help you?`, { 
-                    fromMe: true, 
+            const isOwner = await message.isOwner(message.sender);
+            if (isOwner && fullText === 'alya') {
+                return await bot.reply(`Yes ${message.pushName || 'Master'}, how can I help you?`, { 
                     skipAlya: true 
                 });
             }
@@ -137,16 +130,16 @@ bot(
             }
             
             if (!query) {
-                return await message.send("How can I help you?", { fromMe: true, skipAlya: true });
+                return await bot.reply("How can I help you?", { skipAlya: true });
             }
             
             // Process with AI
-            const reply = await ai.aigf(query, cleanJid(message.sender));
-            await message.send(reply, { fromMe: true, skipAlya: true });
+            const reply = await ai.aigf(query, message.sender);
+            await bot.reply(reply, { skipAlya: true });
             
         } catch (error) {
             console.error('Error in alya listener:', error);
-            await message.send("Sorry, I encountered an error processing your request.", { fromMe: true, skipAlya: true });
+            await bot.reply("Sorry, I encountered an error processing your request.", { skipAlya: true });
         }
     }
 );
