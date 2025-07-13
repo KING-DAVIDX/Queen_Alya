@@ -199,3 +199,61 @@ bot(
     }
   }
 );
+bot(
+    {
+        name: "quoted",
+        info: "Extracts quoted messages from replied messages",
+        category: "Owner",
+        fromMe: true
+    },
+    async (message, bot) => {
+        try {
+            // Verify quoted message exists
+            if (!message.quoted) {
+                return await bot.reply("⚠️ Please reply to a message first");
+            }
+
+            // Verify message ID exists
+            if (!message.quoted.id) {
+                return await bot.reply("🔍 Couldn't identify the message ID");
+            }
+
+            // Load from database using global.store
+            const originalMsg = await store.findMessageById(message.quoted.id);
+            if (!originalMsg?.message) {
+                return await bot.reply("⏳ Message not found in database");
+            }
+
+            // Check for quoted content in the original message
+            const quotedContent = originalMsg.message?.extendedTextMessage?.contextInfo?.quotedMessage ||
+                                 originalMsg.message?.imageMessage?.contextInfo?.quotedMessage ||
+                                 originalMsg.message?.videoMessage?.contextInfo?.quotedMessage ||
+                                 originalMsg.message?.stickerMessage?.contextInfo?.quotedMessage ||
+                                 originalMsg.message?.documentMessage?.contextInfo?.quotedMessage;
+
+            if (!quotedContent) {
+                return await bot.reply("🔄 No quoted content found in this message");
+            }
+
+            // Forward the quoted message
+            await bot.sock.sendMessage(
+                message.chat,
+                { 
+                    forward: {
+                        key: {
+                            remoteJid: message.chat,
+                            fromMe: false,
+                            id: message.quoted.id + "-quoted"
+                        },
+                        message: quotedContent
+                    },
+                    mentions: []
+                },
+                { quoted: message }
+            );
+
+        } catch (error) {
+            await bot.reply(`❌ Failed: ${error.message}`);
+        }
+    }
+);
