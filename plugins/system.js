@@ -1,4 +1,7 @@
+const os = require('os');
 const bot = require("../lib/plugin");
+const { loadPlugins, system: pluginSystem } = require("../lib/plugin");
+const config = require("../config");
 const axios = require("axios");
 const fetch = require("node-fetch");
 const { exec } = require("child_process");
@@ -272,6 +275,126 @@ https://wa.me/2349123721026`;
                     text: repoInfo
                 }
             );
+        }
+    }
+);
+
+bot(
+    {
+        name: "cpu",
+        info: "Displays detailed system CPU and memory information",
+        category: "System"
+    },
+    async (message, bot) => {
+        try {
+            // Get memory usage
+            const memoryUsage = process.memoryUsage();
+            const systemMemory = {
+                used: os.totalmem() - os.freemem(),
+                total: os.totalmem()
+            };
+
+            // Process CPU data
+            const cpus = os.cpus();
+            const cpuSummary = cpus.reduce((acc, cpu) => {
+                const totalTime = Object.values(cpu.times).reduce((sum, time) => sum + time, 0);
+                acc.total += totalTime;
+                acc.speed += cpu.speed / cpus.length;
+                Object.keys(acc.times).forEach(key => {
+                    acc.times[key] += cpu.times[key];
+                });
+                return acc;
+            }, {
+                speed: 0,
+                total: 0,
+                times: {
+                    user: 0,
+                    nice: 0,
+                    sys: 0,
+                    idle: 0,
+                    irq: 0
+                }
+            });
+
+            // Formatting functions
+            const formatMemory = bytes => {
+                if (bytes >= 1e9) return `${(bytes/1e9).toFixed(2)} GB`;
+                if (bytes >= 1e6) return `${(bytes/1e6).toFixed(2)} MB`;
+                if (bytes >= 1e3) return `${(bytes/1e3).toFixed(2)} KB`;
+                return `${bytes} B`;
+            };
+
+            const formatUptime = seconds => {
+                const days = Math.floor(seconds / 86400);
+                const hours = Math.floor((seconds % 86400) / 3600);
+                const minutes = Math.floor((seconds % 3600) / 60);
+                return `${days}d ${hours}h ${minutes}m`;
+            };
+
+            // Generate report
+            const report = `
+*🖥️ SYSTEM PERFORMANCE REPORT*
+
+*⏳ UPTIME*
+${formatUptime(process.uptime())}
+
+*💾 MEMORY USAGE*
+System: ${formatMemory(systemMemory.used)} / ${formatMemory(systemMemory.total)}
+Node.js:
+${Object.entries(memoryUsage)
+    .map(([key, value]) => `• ${key.padEnd(8)}: ${formatMemory(value)}`)
+    .join('\n')}
+
+*⚡ CPU INFO*
+Model: ${cpus[0].model.split('@')[0].trim()}
+Cores: ${cpus.length}
+Speed: ${(cpuSummary.speed / 1000).toFixed(2)} GHz
+
+*📊 CPU USAGE*
+${Object.entries(cpuSummary.times)
+    .map(([type, time]) => 
+        `• ${type.padEnd(5)}: ${(time * 100 / cpuSummary.total).toFixed(1)}%`
+    ).join('\n')}
+`.trim();
+
+            await bot.reply(report);
+
+        } catch (error) {
+            console.error("CPU command failed:", error);
+            await bot.send(message.chat, { text: "❌ Failed to retrieve system information" });
+        }
+    }
+);
+
+bot(
+    {
+        name: "feature",
+        info: "Displays all available bot features",
+        category: "system",
+        usage: "Just send /feature"
+    },
+    async (message, bot) => {
+        try {
+            // Load plugins and get counts exactly as specified
+            const plugins = pluginSystem.getPlugins();
+            const commandCount = plugins.commands.length;
+            const eventCount = plugins.events.length;
+            const totalPlugins = commandCount+eventCount;
+
+            // Build feature text in your preferred format
+            let featureText = " *乂 Queen_Alya - ＢＯＴ ＦＥＡＴＵＲＥ*\n\n\n" +
+              `  ◦ _Total Features ➪ ${totalPlugins}_\n` +
+              "\n*◦ BOT FEATURES*\n\n" +
+              `      _Plugins ➪ ${commandCount}_\n` +
+              `      _Event Listeners ➪ ${eventCount}_\n` +
+              `\n${config.caption || "© Queen Alya"}`;
+
+            // Send the feature list
+            await bot.reply(featureText);
+            
+        } catch (error) {
+            console.error("Feature command failed:", error);
+            await bot.reply("❌ Failed to retrieve feature information");
         }
     }
 );
