@@ -1,5 +1,5 @@
-const plugins = require("../lib/plugin");
 const bot = require("../lib/plugin");
+const plugins = require("../lib/plugin");
 const fs = require('fs');
 const path = require('path');
 const config = require("../config");
@@ -32,12 +32,7 @@ function saveStickerCommands() {
 // Initialize by loading saved commands
 loadStickerCommands();
 
-// Simplified sticker ID generation using fileSha256
-function generateStickerId(stickerMessage) {
-    if (!stickerMessage?.fileSha256) return null;
-    return Buffer.from(stickerMessage.fileSha256).toString('hex');
-}
-
+// 1. Setcmd - Assign a command to a sticker
 bot(
     {
         name: "setcmd",
@@ -63,32 +58,26 @@ bot(
         }
 
         try {
-            const stickerMsg = message.quoted.sticker || message.quoted.fakeObj?.message?.stickerMessage;
-            if (!stickerMsg) {
-                return await bot.reply("❌ Could not retrieve sticker metadata.");
-            }
-
-            const stickerId = generateStickerId(stickerMsg);
-            if (!stickerId) {
-                return await bot.reply("❌ Failed to generate sticker ID (missing fileSha256).");
-            }
+            var hash = message.quoted.fileSha256 ? Buffer.from(message.quoted.fileSha256).toString('hex') : null;
+            if (!hash) return await bot.reply("couldn't get stk hash");
             
-            // Remove any existing command with this name or same sticker
+            // Remove any existing command with this name or same hash
             stickerCommands = stickerCommands.filter(cmd => 
-                cmd.name !== commandName && cmd.stickerId !== stickerId
+                cmd.name !== commandName && cmd.hash !== hash
             );
             
             const commandData = {
                 name: commandName,
-                stickerId: stickerId,
+                hash: hash,
                 createdAt: new Date().toISOString(),
                 createdBy: message.sender
             };
 
+            // Add the new command
             stickerCommands.push(commandData);
             saveStickerCommands();
 
-            await bot.reply(`✅ Sticker command "${commandName}" has been set!\nSticker ID: ${stickerId}`);
+            await bot.reply(`✅ Sticker command "${commandName}" has been set!\nHash: ${hash}`);
 
         } catch (error) {
             console.error("Error setting sticker command:", error);
@@ -150,8 +139,8 @@ bot(
 
         let response = "📜 Sticker Commands List:\n\n";
         stickerCommands.forEach((cmd, index) => {
-            response += `${index + 1}. ${config.PREFIX}${cmd.name} (${cmd.isAnimated ? 'Animated' : 'Static'})\n`;
-            response += `   ID: ${cmd.stickerId}\n`;
+            response += `${index + 1}. ${config.PREFIX}${cmd.name}\n`;
+            response += `   Hash: ${cmd.hash}\n`;
             response += `   Set by: ${cmd.createdBy.split('@')[0]}\n`;
             response += `   Date: ${new Date(cmd.createdAt).toLocaleString()}\n\n`;
         });
@@ -160,6 +149,7 @@ bot(
     }
 );
 
+// 4. Sticker Command Listener - Handle sticker commands
 bot(
     {
         on: 'sticker',
@@ -168,19 +158,15 @@ bot(
     },
     async (message, bot) => {
         try {
-            let stickerMsg = message.sticker;
-            if (!stickerMsg) {
-                const serializedMsg = await serializeMessage(message.fakeObj, bot.sock);
-                stickerMsg = serializedMsg?.sticker;
+            var hash = message.msg.fileSha256 ? Buffer.from(message.msg.fileSha256).toString('hex') : null;
+            if (!hash) return;
+            
+            // Find matching command
+            const matchedCommand = stickerCommands.find(cmd => cmd.hash === hash);
+            
+            if (!matchedCommand) {
+                return; // No command associated with this sticker
             }
-
-            if (!stickerMsg) return;
-            
-            const stickerId = generateStickerId(stickerMsg);
-            if (!stickerId) return;
-            
-            const matchedCommand = stickerCommands.find(cmd => cmd.stickerId === stickerId);
-            if (!matchedCommand) return;
             
             // Create command message
             const commandMessage = {
@@ -201,7 +187,7 @@ bot(
             };
             
             // Execute the command
-            await bot.plugins.system.handleMessage(commandMessage, bot);
+            await plugins.system.handleMessage(commandMessage, bot);
             
         } catch (error) {
             console.error('Error in sticker command listener:', error);
