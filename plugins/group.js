@@ -1581,3 +1581,138 @@ bot(
         }
     }
 );
+
+bot(
+    {
+        name: "active",
+        info: "Shows most active users in the group",
+        category: "group",
+        usage: "active - Shows top 10 active users"
+    },
+    async (message, bot) => {
+        // Only work in groups
+        if (!message.chat.endsWith('@g.us')) {
+            return await bot.reply("This command only works in groups!");
+        }
+
+        try {
+            const chatHistory = await store.getChatHistory(message.chat);
+            
+            if (!chatHistory?.length) {
+                return await bot.reply("No message history available for this chat.");
+            }
+
+            // Count messages per user
+            const userActivity = {};
+            for (const entry of chatHistory) {
+                try {
+                    const msg = JSON.parse(entry.message);
+                    if (msg.key?.fromMe) continue;
+                    
+                    const participant = msg.key?.participant || msg.key?.remoteJid;
+                    if (!participant) continue;
+                    
+                    const username = msg.pushName || participant.split('@')[0];
+                    userActivity[participant] = userActivity[participant] || { username, count: 0 };
+                    userActivity[participant].count++;
+                } catch (e) {
+                    console.error('Message parse error:', e);
+                }
+            }
+
+            const users = Object.entries(userActivity).map(([id, data]) => ({
+                id, 
+                username: data.username,
+                count: data.count
+            }));
+
+            if (!users.length) {
+                return await bot.reply("No user activity data available.");
+            }
+
+            const topUsers = users.sort((a, b) => b.count - a.count).slice(0, 10);
+            
+            await bot.sock.sendMessage(message.chat, {
+                text: `*TOP 10 ACTIVE USERS*\n\n` +
+                      topUsers.map((u, i) => `${i+1}. @${u.username} - ${u.count} messages`).join('\n') +
+                      `\n\nTotal users: ${users.length}`,
+                mentions: topUsers.map(u => u.id)
+            });
+
+        } catch (error) {
+            console.error('Active command error:', error);
+            await bot.reply("Error processing active users data. Check console for details.");
+        }
+    }
+);
+
+bot(
+    {
+        name: "inactive",
+        info: "Shows least active users in the group",
+        category: "group",
+        usage: "inactive - Shows users with 5 or fewer messages"
+    },
+    async (message, bot) => {
+        // Only work in groups
+        if (!message.chat.endsWith('@g.us')) {
+            return await bot.reply("This command only works in groups!");
+        }
+
+        try {
+            const chatHistory = await store.getChatHistory(message.chat);
+            
+            if (!chatHistory?.length) {
+                return await bot.reply("No message history available for this chat.");
+            }
+
+            // Count messages per user
+            const userActivity = {};
+            for (const entry of chatHistory) {
+                try {
+                    const msg = JSON.parse(entry.message);
+                    if (msg.key?.fromMe) continue;
+                    
+                    const participant = msg.key?.participant || msg.key?.remoteJid;
+                    if (!participant) continue;
+                    
+                    const username = msg.pushName || participant.split('@')[0];
+                    userActivity[participant] = userActivity[participant] || { username, count: 0 };
+                    userActivity[participant].count++;
+                } catch (e) {
+                    console.error('Message parse error:', e);
+                }
+            }
+
+            const users = Object.entries(userActivity).map(([id, data]) => ({
+                id, 
+                username: data.username,
+                count: data.count
+            }));
+
+            if (!users.length) {
+                return await bot.reply("No user activity data available.");
+            }
+
+            const threshold = 5;
+            const inactive = users.filter(u => u.count <= threshold)
+                                .sort((a, b) => a.count - b.count)
+                                .slice(0, 10);
+            
+            if (!inactive.length) {
+                return await bot.reply(`No inactive users (everyone has >${threshold} messages).`);
+            }
+            
+            await bot.sock.sendMessage(message.chat, {
+                text: `*INACTIVE USERS (≤${threshold} messages)*\n\n` +
+                      inactive.map((u, i) => `${i+1}. @${u.username} - ${u.count} messages`).join('\n') +
+                      `\n\nTotal users: ${users.length}`,
+                mentions: inactive.map(u => u.id)
+            });
+
+        } catch (error) {
+            console.error('Inactive command error:', error);
+            await bot.reply("Error processing inactive users data. Check console for details.");
+        }
+    }
+);
