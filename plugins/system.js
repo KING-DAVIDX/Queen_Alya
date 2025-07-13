@@ -382,7 +382,7 @@ bot(
             const totalPlugins = commandCount+eventCount;
 
             // Build feature text in your preferred format
-            let featureText = " *乂 Queen_Alya - ＢＯＴ ＦＥＡＴＵＲＥ*\n\n\n" +
+            let featureText = " *Queen_Alya - ＢＯＴ ＦＥＡＴＵＲＥ*\n\n\n" +
               `  ◦ _Total Features ➪ ${totalPlugins}_\n` +
               "\n*◦ BOT FEATURES*\n\n" +
               `      _Plugins ➪ ${commandCount}_\n` +
