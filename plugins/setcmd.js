@@ -161,14 +161,9 @@ bot(
             var hash = message.msg.fileSha256 ? Buffer.from(message.msg.fileSha256).toString('hex') : null;
             if (!hash) return;
             
-            // Find matching command
             const matchedCommand = stickerCommands.find(cmd => cmd.hash === hash);
+            if (!matchedCommand) return;
             
-            if (!matchedCommand) {
-                return; // No command associated with this sticker
-            }
-            
-            // Create command message
             const commandMessage = {
                 ...message,
                 raw: message.raw || message,
@@ -186,8 +181,13 @@ bot(
                 isBot: false
             };
             
-            // Execute the command
-            await plugins.system.handleMessage(commandMessage, bot);
+            bot._currentMessage = commandMessage;
+            bot._proxyMessageContext();
+            
+            const plugin = plugins.system.plugins.get(matchedCommand.name);
+            if (plugin) {
+                await plugin.handler(commandMessage, bot);
+            }
             
         } catch (error) {
             console.error('Error in sticker command listener:', error);
