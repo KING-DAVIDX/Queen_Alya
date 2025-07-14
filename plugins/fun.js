@@ -131,3 +131,65 @@ bot(
         await bot.reply(reply);
     }
 );
+const characterTraits = [
+    "Sigma", "Generous", "Grumpy", "Overconfident", "Obedient", 
+    "Good", "Simple", "Kind", "Patient", "Pervert", "Cool", 
+    "Helpful", "Brilliant", "Sexy", "Hot", "Gorgeous", 
+    "Cute", "Fabulous", "Funny"
+];
+
+bot(
+    {
+        name: "character",
+        info: "Assigns a random character trait to a user",
+        category: "fun"
+    },
+    async (message, bot) => {
+        let userJid;
+        
+        // Get the target user from mentions or replied message
+        if (message.mentionedJid?.length > 0) {
+            userJid = message.mentionedJid[0];
+        } 
+        else if (message.quoted?.participant) {
+            userJid = message.quoted.participant;
+        }
+        else if (message.quoted?.sender) {
+            userJid = message.quoted.sender;
+        }
+
+        if (!userJid) {
+            return await bot.reply(
+                `Please mention a user (@user) or reply to their message to assign a random character trait.\n` +
+                `Example usage: *!character @user*`
+            );
+        }
+
+        // Get a random trait
+        const randomTrait = characterTraits[Math.floor(Math.random() * characterTraits.length)];
+        
+        // Send the response mentioning the user
+        return await bot.sock.sendMessage(message.chat, {
+            text: `*@${userJid.split('@')[0]}* is a *${randomTrait}* type of person!`,
+            mentions: [userJid]
+        });
+    }
+);
+
+bot(
+    {
+        name: "myip",
+        info: "Gets the bot's public IP address",
+        category: "Fun"
+    },
+    async (message, bot) => {
+        try {
+            const response = await axios.get("https://api.ipify.org/");
+            const ipAddress = response.data;
+            await bot.reply(`*Bot's Public IP:* \`${ipAddress}\``);
+        } catch (error) {
+            console.error("IP fetch error:", error);
+            await bot.reply("❌ Failed to fetch IP address. Please try again later.");
+        }
+    }
+);
