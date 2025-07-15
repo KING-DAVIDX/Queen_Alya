@@ -1,4 +1,4 @@
-const { extractUrlsFromString } = require('baileys');
+const { extractUrlFromText } = require('baileys');
 const yts = require('yt-search');
 const axios = require('axios');
 const bot = require("../lib/plugin");
@@ -108,7 +108,7 @@ bot({
     await bot.react("⏰")
     
     let videoUrl
-    const urls = await extractUrlsFromString(input)
+    const urls = await extractUrlFromText(input)
     const ytPattern = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+/
     
     videoUrl = urls.find(url => ytPattern.test(url))
@@ -162,7 +162,7 @@ bot({
     bot.react("🎵")
     
     let audioUrl
-    const extractedUrls = await extractUrlsFromString(query)
+    const extractedUrls = await extractUrlFromText(query)
     const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+/
     
     audioUrl = extractedUrls.find(link => youtubeRegex.test(link))
@@ -405,7 +405,7 @@ bot({
         return bot.reply(`_*Send YouTube link or title*_\n_Example: ${prefix}ytvdoc https://youtu.be/xyz_`)
     }
 
-    const urlList = await extractUrlsFromString(content)
+    const urlList = await extractUrlFromText(content)
     const ytRegexp = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+/
     
     let targetUrl = urlList.find(url => ytRegexp.test(url))
@@ -461,7 +461,7 @@ bot({
         return bot.reply(`_*Provide YouTube link or title*_\n_Example: ${prefix}ytadoc https://youtu.be/abc123_`)
     }
 
-    const foundUrls = await extractUrlsFromString(input)
+    const foundUrls = await extractUrlFromText(input)
     const ytPattern = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+/
     
     let audioUrl = foundUrls.find(url => ytPattern.test(url))
@@ -520,7 +520,7 @@ bot({
     await bot.react("🎬")
     
     try {
-        const urlsFound = await extractUrlsFromString(linkText)
+        const urlsFound = await extractUrlFromText(linkText)
         const tiktokPattern = /https:\/\/(?:www\.|vm\.)?tiktok\.com\/(?:(@[\w.-]+\/)?(?:video|photo)\/[\d]+|[\w-]+\/?)(?:\?.*)?$/
         
         const tiktokLink = urlsFound.find(url => tiktokPattern.test(url))
@@ -574,7 +574,7 @@ bot({
     await bot.react("🐦")
     
     try {
-        const extractedLinks = await extractUrlsFromString(linkInput)
+        const extractedLinks = await extractUrlFromText(linkInput)
         const twitterRegex = /^(https?:\/\/)?(www\.)?(x\.com|twitter\.?com)\/.+$/
         
         const twitterUrl = extractedLinks.find(url => twitterRegex.test(url))
@@ -610,7 +610,7 @@ bot({
     bot.react("📘")
     
     try {
-        const linkArray = await extractUrlsFromString(fbLink)
+        const linkArray = await extractUrlFromText(fbLink)
         const fbRegex = /^(https?:\/\/)?(www\.)?(fb\.com|facebook\.?com)\/.+$/
         const validLink = linkArray.find(url => fbRegex.test(url))
         
@@ -665,7 +665,7 @@ bot({
     await bot.react("📷")
     
     try {
-        const foundLinks = await extractUrlsFromString(igInput)
+        const foundLinks = await extractUrlFromText(igInput)
         const instagramRegex = /^(https?:\/\/)?(www\.)?(ig\.com|instagram\.?com)\/.+$/  
         const instagramUrl = foundLinks.find(url => instagramRegex.test(url))
         
