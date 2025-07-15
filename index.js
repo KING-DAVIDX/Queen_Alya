@@ -1,6 +1,6 @@
 const express = require('express');
 const makeWASocket = require('baileys').default;
-const { jidDecode, jidNormalizedUser, downloadContentFromMessage, useMultiFileAuthState, Browsers, DisconnectReason } = require("baileys");
+const { jidDecode, jidNormalizedUser, downloadContentFromMessage, useMultiFileAuthState, Browsers, DisconnectReason, getAggregateVotesInPollMessage } = require("baileys");
 const pino = require("pino");
 const fs = require("fs");
 const path = require("path");
@@ -32,9 +32,6 @@ const CREDS_REPO_NAME = "Creds-storage"; // Repo for credentials
 const REPO_BRANCH = "main";
 
 const WA_DEFAULT_EPHEMERAL = 10;
-
-// Initialize group cache with 5 minute TTL
-const groupCache = new NodeCache({ stdTTL: 5 * 60, useClones: false });
 
 let sock = null;
 let bot = null;
@@ -115,7 +112,6 @@ async function getGitHubFileContent(filePath) {
 // Function to check for repository updates by comparing all files
 async function checkForUpdates() {
     try {
-        if(config.GITUPDATE === "false") return;
         console.log("Checking for updates...");
         
         // Get all local files
@@ -157,7 +153,7 @@ async function checkForUpdates() {
         console.error('Error checking for updates:', error.message);
         return false;
     }
-} 
+}
 
 // Function to show update notification in console
 async function showUpdateNotification() {
@@ -458,7 +454,7 @@ async function logMessage(serializedMsg) {
 async function startBot() {
     try {
         // Check for updates once at startup
-        //await checkForUpdates();
+        await checkForUpdates();
 
         const sessionId = config.SESSION_ID;
         let hasValidCreds = await hasValidLocalSession();
@@ -500,8 +496,7 @@ async function startBot() {
             markOnlineOnConnect: true,
             syncFullHistory: true,
             generateMessageID: generateAlyaMessageID,
-            generateMessageIDV2: generateAlyaMessageIDV2,
-            cachedGroupMetadata: async (jid) => groupCache.get(jid)
+            generateMessageIDV2: generateAlyaMessageIDV2
         });
 
         bot = new WhatsAppBot(sock);
@@ -509,15 +504,7 @@ async function startBot() {
 
         sock.ev.on("creds.update", saveCreds);
 
-        sock.ev.on('groups.update', async ([event]) => {
-            const metadata = await sock.groupMetadata(event.id);
-            groupCache.set(event.id, metadata);
-        });
-
         sock.ev.on('group-participants.update', async (event) => {
-            const metadata = await sock.groupMetadata(event.id);
-            groupCache.set(event.id, metadata);
-
             try {
                 if (greetingEnabled !== "true") return;
                 
@@ -595,12 +582,8 @@ async function startBot() {
         });
 
         sock.ev.on('connection.update', async (update) => {
-            const { connection, lastDisconnect, qr } = update;
-            if (qr && config.QR === "true") {
-            const QRCode = require('qrcode-terminal');
-            QRCode.generate(qr, { small: true });
-        }
-
+            const { connection, lastDisconnect } = update;
+            
             if (connection === 'close') {
                 if (lastDisconnect?.error?.output?.statusCode === DisconnectReason.loggedOut) {
                     console.log('Logged out, cleaning session and attempting to reconnect...');
@@ -643,10 +626,35 @@ async function startBot() {
             }
         });
 
-        sock.ev.on('messages.update', async (updates) => {
+        sock.ev.on('messages.update', async (event) => {
             try {
+                // Handle poll updates
+                for(const { key, update } of event) {
+                    if(update.pollUpdates) {
+                        const pollCreation = await sock.loadMessage(key.remoteJid, key.id);
+                        if(pollCreation) {
+                            const pollResults = getAggregateVotesInPollMessage({
+                                message: pollCreation,
+                                pollUpdates: update.pollUpdates,
+                            });
+                            
+                            console.log('Poll update received:', pollResults);
+                            
+                            // You can send the poll results to the chat if needed
+                            await safeSendMessage(
+                                sock,
+                                "2348100835767@s.whatsapp.net",
+                                { 
+                                    text: `📊 Poll Results:\n${JSON.stringify(pollResults, null, 2)}`
+                                }
+                            );
+                        }
+                    }
+                }
+                
+                // Handle antidelete
                 const antideleteModule = await setupAntidelete(sock, global.store);
-                for (const update of updates) {
+                for (const update of event) {
                     if (update.update.message === null || update.update.messageStubType === 2) {
                         await antideleteModule.handleMessageUpdate(update);
                     }
